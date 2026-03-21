@@ -1,2 +1,2 @@
-# shinchon_guide
-shinchon_guide
+# sinchon_guide
+sinchon_guide
