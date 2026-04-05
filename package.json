@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "rnc-cli run-android",
-    "ios": "rnc-cli run-ios",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
     "lint": "eslint .",
-    "start": "rnc-cli start",
+    "start": "react-native start",
     "test": "jest"
   },
   "dependencies": {
