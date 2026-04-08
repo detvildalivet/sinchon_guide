@@ -12,7 +12,7 @@ class HomeScreen extends Component {
           <Button
             title="Restaurant"
             onPress={()=>
-              { this.props.navigation.navigate('WillYouMatchScreen', { selectedPlace: 'Restaurant' }) }
+              { this.props.navigation.navigate('WillYouMatch', { selectedPlace: 'Restaurant' }) }
             }
           />
           <Button title="Bar" onPress={()=>Alert.alert("Your Choice: ", "Bar")}/>

@@ -9,8 +9,9 @@ const Stack = createNativeStackNavigator();
 function RootStack() {
   return (
     <Stack.Navigator initialRouteName='Home'>
-      <Stack.Screen name='Home' component={HomeScreen} />
-      <Stack.Screen name='WillYouMatch' component={WillYouMatchScreen} />
+      <Stack.Screen name='Home' component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name='WillYouMatch' component={WillYouMatchScreen} 
+        options={{ title: 'Go Back' }} />
     </Stack.Navigator>
   );
 }
