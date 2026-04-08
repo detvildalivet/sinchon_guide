@@ -1,5 +1,6 @@
 import React from 'react';
 import {Button, StyleSheet, Text, View, Alert} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
 
 function App() {
   return (
