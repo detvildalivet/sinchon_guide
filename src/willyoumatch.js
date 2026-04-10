@@ -1,5 +1,6 @@
-import React, { Component } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Component } from 'react';
+import { Button, Text, View, Alert } from 'react-native'; // Alert is only for testing.
+import styles from './styles';
 
 class WillYouMatchScreen extends Component {
   render () {
@@ -11,32 +12,12 @@ class WillYouMatchScreen extends Component {
           Do you want to go { selectedPlace } with people?
         </Text>
         <View style={styles.buttonContainer}>
-          <Button title='Yes'/>
-          <Button title='No'/>        
+          <Button title='Yes' onPress={()=>Alert.alert('Your Choice: ', `You go to ${ selectedPlace } with people.`)}/>
+          <Button title='No' onPress={()=>Alert.alert('Your choice: ', `You go to ${ selectedPlace } alone.`)}/>        
         </View>
       </View>
-    );
+    )
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  maintxt: {
-    fontWeight: 'bold',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: 40,
-  },
-  buttonContainer: {
-    margin: 30,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 20
-  }
-});
 
 export default WillYouMatchScreen;

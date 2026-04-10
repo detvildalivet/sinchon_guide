@@ -1,5 +1,6 @@
-import React, { Component } from 'react';
-import { Button, StyleSheet, Text, View, Alert } from 'react-native';
+import { Component } from 'react';
+import { TouchableOpacity, Button, Text, View, Alert, Image } from 'react-native'; // Alert is only for testing.
+import styles from './styles';
 
 class HomeScreen extends Component {
   render () {
@@ -15,32 +16,42 @@ class HomeScreen extends Component {
               { this.props.navigation.navigate('WillYouMatch', { selectedPlace: 'Restaurant' }) }
             }
           />
-          <Button title="Bar" onPress={()=>Alert.alert("Your Choice: ", "Bar")}/>
-          <Button title="Cafe" onPress={()=>Alert.alert("Your Choice: ", "Cafe")}/>        
+          <Button
+            title="Cafe"
+            onPress={()=>
+              { this.props.navigation.navigate('WillYouMatch', { selectedPlace: 'Cafe' }) }
+            }
+          />
+          <Button
+            title="Bar"
+            onPress={()=>
+              { this.props.navigation.navigate('WillYouMatch', { selectedPlace: 'Bar' }) }
+            }
+          />       
+        </View>
+        <View style={styles.topRightContainer}>
+          <TouchableOpacity onPress={()=>Alert.alert('MAPPP')}>
+            <Image
+              style={styles.icon}
+              source={require('./assets/pics/maps-and-flags.png')}
+            />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.topLeftContainer}>
+          <TouchableOpacity
+            onPress={()=>
+              { this.props.navigation.navigate('Profile') }
+            }
+          >
+            <Image
+              style={styles.icon}
+              source={require('./assets/pics/user.png')}
+            />
+          </TouchableOpacity>
         </View>
       </View>
     );
-  }
+  } 
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  maintxt: {
-    fontWeight: 'bold',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: 40,
-  },
-  buttonContainer: {
-    margin: 30,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 20
-  }
-});
 
 export default HomeScreen;
