@@ -1,10 +1,10 @@
-import { Component } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './src/home';
 import WillYouMatchScreen from './src/willyoumatch';
 import ProfileScreen from './src/profile';
 import SettingsScreen from './src/settings';
+import NoMatchScreen from './src/nomatch';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,7 +15,7 @@ function RootStack() {
       <Stack.Screen name='WillYouMatch' component={WillYouMatchScreen} 
         options={{ 
           headerTransparent: true,
-          headerTitle: 'Go back',
+          headerTitle: 'Go Back',
           headerShadowVisible: false
         }} 
       />
@@ -31,18 +31,23 @@ function RootStack() {
           headerTitleAlign: 'center'
         }}
       />
+      <Stack.Screen name='NoMatch' component={NoMatchScreen} 
+        options={{ 
+          headerTransparent: true,
+          headerTitle: 'Go Back',
+          headerShadowVisible: false
+        }}
+      />
     </Stack.Navigator>
   );
 }
 
-class App extends Component {
-  render () {
-    return (
-      <NavigationContainer>
-        <RootStack/>
-      </NavigationContainer>
-    );
-  }
+const App = () => {
+  return (
+    <NavigationContainer>
+      <RootStack/>
+    </NavigationContainer>
+  );
 }
 
 export default App;

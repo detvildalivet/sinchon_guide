@@ -40,11 +40,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 20,
   },
+  topContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    position: 'absolute',
+    justifyContent: 'center',
+    top: 200,
+    gap: 20,
+  },
   maintxt: {
     fontWeight: 'bold',
     textAlign: 'center',
     textAlignVertical: 'center',
     fontSize: 40,
+  },
+  subTitle: {
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontSize: 32,
+    margin: 5,
   },
   item: {
     backgroundColor: 'white',
@@ -93,7 +107,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-  }
+  },
+  minimap: {
+    width: 200,
+    height: 200,
+    resizeMode: 'center'
+  },
 });
 
 export default styles;

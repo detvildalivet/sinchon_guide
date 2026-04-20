@@ -3,7 +3,7 @@ import styles from './styles';
 
 const LIST = [
   { 
-    id: '1',
+    id: '0',
     title: 'History',
     iconSource: require('./assets/pics/history.png'),
   },
@@ -16,7 +16,7 @@ const Item = ({ title, iconSource }) => (
   </View>
 )
 
-const ProfileScreen = (props) => {
+const ProfileScreen = ({ navigation }) => {
   const renderItem = ({ item }) => (
       <Item title={item.title} iconSource={item.iconSource} />
   )
@@ -33,7 +33,7 @@ const ProfileScreen = (props) => {
           <Image style={{width: 60, height: 60}} source={USERDATA.imgSource} />
         </View>
         <View style={styles.settingsIconContainer}>
-          <TouchableOpacity onPress={()=>props.navigation.navigate('Settings')}>
+          <TouchableOpacity onPress={()=>navigation.navigate('Settings')}>
             <Image style={styles.smallIcon} source={require('./assets/pics/setting.png')} />
           </TouchableOpacity>
         </View>
