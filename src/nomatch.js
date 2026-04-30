@@ -5,7 +5,7 @@ import styles from './styles';
 const NoMatchScreen = ({ route }) => {
   const [index, setIndex] = useState(0)
 
-  const noPressed = () => {
+  const pressedNo = () => {
     setIndex((prev) => (prev + 1) % location.length)
   }
 
@@ -38,7 +38,7 @@ const NoMatchScreen = ({ route }) => {
         
         <View style={[styles.buttonContainer, { margin: 10 }]}>
           <Button title='Yes' onPress={()=>Alert.alert('Your choose to go to: ', `${location[index].title}`)}/>
-          <Button title='No' onPress={noPressed} />
+          <Button title='No' onPress={pressedNo} />
         </View>
       </View>
 

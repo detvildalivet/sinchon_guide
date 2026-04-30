@@ -5,6 +5,7 @@ import WillYouMatchScreen from './src/willyoumatch';
 import ProfileScreen from './src/profile';
 import SettingsScreen from './src/settings';
 import NoMatchScreen from './src/nomatch';
+import MatchingScreen from './src/matching';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,12 @@ function RootStack() {
           headerTransparent: true,
           headerTitle: 'Go Back',
           headerShadowVisible: false
+        }}
+      />
+      <Stack.Screen name='Matching' component={MatchingScreen}
+        options={{
+          headerTitle: 'Matching...',
+          headerTitleAlign: 'center'
         }}
       />
     </Stack.Navigator>

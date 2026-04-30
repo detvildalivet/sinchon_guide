@@ -14,28 +14,28 @@ const styles = StyleSheet.create({
   },
   topRightContainer: {
     position: 'absolute',
-    top: 60,
+    top: 80,
     right: 30,
     flexDirection: 'row',
     gap: 20,
   },
   topLeftContainer: {
     position: 'absolute',
-    top: 60,
+    top: 80,
     left: 30,
     flexDirection: 'row',
     gap: 20,
   },
   bottomRightContainer: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 80,
     right: 30,
     flexDirection: 'row',
     gap: 20,
   },
   bottomLeftContainer: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 80,
     left: 30,
     flexDirection: 'row',
     gap: 20,
@@ -72,8 +72,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   icon: {
-    width: 40,
-    height: 40
+    width: 50,
+    height: 50
   },
   smallIcon: {
     width: 30,
