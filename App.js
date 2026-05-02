@@ -6,6 +6,7 @@ import ProfileScreen from './src/profile';
 import SettingsScreen from './src/settings';
 import NoMatchScreen from './src/nomatch';
 import MatchingScreen from './src/matching';
+import MapScreen from './src/map';
 
 const Stack = createNativeStackNavigator();
 
@@ -43,6 +44,13 @@ function RootStack() {
         options={{
           headerTitle: 'Matching...',
           headerTitleAlign: 'center'
+        }}
+      />
+      <Stack.Screen name='Map' component={MapScreen}
+        options={{
+          headerTransparent: true,
+          headerTitle: 'Go Back',
+          headerShadowVisible: false
         }}
       />
     </Stack.Navigator>

@@ -28,7 +28,9 @@ const HomeScreen = ({ navigation }) => {
         />       
       </View>
       <View style={styles.topRightContainer}>
-        <TouchableOpacity onPress={()=>Alert.alert('MAPPP')}>
+        <TouchableOpacity onPress={()=>
+          { navigation.navigate('Map') }
+        }>
           <Image
             style={styles.icon}
             source={require('./assets/pics/maps-and-flags.png')}
