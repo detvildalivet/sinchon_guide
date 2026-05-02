@@ -49,7 +49,7 @@ function RootStack() {
       <Stack.Screen name='Map' component={MapScreen}
         options={{
           headerTransparent: true,
-          headerTitle: 'Go Back',
+          headerTitle: '',
           headerShadowVisible: false
         }}
       />

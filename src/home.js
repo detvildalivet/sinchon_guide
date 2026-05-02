@@ -1,4 +1,4 @@
-import { TouchableOpacity, Button, Text, View, Alert, Image } from 'react-native'; // Alert is only for testing.
+import { TouchableOpacity, Button, Text, View, Image } from 'react-native'; // Alert is only for testing.
 import styles from './styles';
 
 const HomeScreen = ({ navigation }) => {
