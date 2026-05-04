@@ -74,7 +74,7 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 Properties properties = new Properties()
 properties.load(project.rootProject.file('local.properties').newDataInputStream())
-def googleMapApiKey = properties.getProperty('google_map_api_key')
+def googleMapApiKey = properties.getProperty('google_map_api_key') // Map API SDK
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -94,7 +94,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        manifestPlaceholders = [googleMapApiKey:googleMapApiKey]
+        manifestPlaceholders = [googleMapApiKey:googleMapApiKey] // Map API SDK
+        buildConfigField "String", "places_api_key", "\"${project.properties.places_api_key}\"" // Places API
     }
     signingConfigs {
         debug {

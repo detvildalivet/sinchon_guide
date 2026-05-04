@@ -13,24 +13,29 @@ const HomeScreen = ({ navigation }) => {
           onPress={()=>
             { navigation.navigate('WillYouMatch', { selectedPlace: 'Restaurant' }) }
           }
+          color='orange'
         />
         <Button
           title="Cafe"
           onPress={()=>
             { navigation.navigate('WillYouMatch', { selectedPlace: 'Cafe' }) }
           }
+          color='orange'
         />
         <Button
           title="Bar"
           onPress={()=>
             { navigation.navigate('WillYouMatch', { selectedPlace: 'Bar' }) }
           }
+          color='orange'
         />       
       </View>
       <View style={styles.topRightContainer}>
-        <TouchableOpacity onPress={()=>
-          { navigation.navigate('Map') }
-        }>
+        <TouchableOpacity 
+          onPress={()=>
+            { navigation.navigate('Map') }
+          }
+        >
           <Image
             style={styles.icon}
             source={require('./assets/pics/maps-and-flags.png')}

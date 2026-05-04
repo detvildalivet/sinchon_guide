@@ -37,8 +37,18 @@ const NoMatchScreen = ({ route }) => {
         <Text style={styles.subTitle}>{ location[index].title }</Text>
         
         <View style={[styles.buttonContainer, { margin: 10 }]}>
-          <Button title='Yes' onPress={()=>Alert.alert('Your choose to go to: ', `${location[index].title}`)}/>
-          <Button title='No' onPress={pressedNo} />
+          <Button 
+            title='Yes' 
+            onPress={()=>
+              Alert.alert('Your choose to go to: ', `${location[index].title}`)
+            }
+            color='orange'
+          />
+          <Button 
+            title='No' 
+            onPress={pressedNo} 
+            color='orange'
+          />
         </View>
       </View>
 
