@@ -19,6 +19,7 @@
     "@rneui/themed": "^5.0.0",
     "react": "19.2.3",
     "react-native": "0.84.1",
+    "react-native-config": "^1.6.1",
     "react-native-google-places-autocomplete": "^2.6.4",
     "react-native-maps": "^1.27.2",
     "react-native-safe-area-context": "^5.7.0",
