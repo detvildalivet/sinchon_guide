@@ -1,45 +1,40 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import { useState } from 'react';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import HomeScreen, { type PlaceCategory } from './src/screens/HomeScreen.tsx';
+import JoinOrCreateScreen from './src/screens/JoinOrCreate.tsx';
+import TogetherScreen from './src/screens/Together.tsx';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+type Screen = 'home' | 'together' | 'join-or-create';
 
-  return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
+export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<Screen>('home');
+  const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | null>(
+    null,
   );
-}
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
+  if (currentScreen === 'join-or-create' && selectedCategory !== null) {
+    return <JoinOrCreateScreen onBack={() => setCurrentScreen('together')} />;
+  }
 
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
+  if (currentScreen === 'together' && selectedCategory !== null) {
+    return (
+      <TogetherScreen
+        category={selectedCategory}
+        onBack={() => {
+          setSelectedCategory(null);
+          setCurrentScreen('home');
+        }}
+        onYes={() => setCurrentScreen('join-or-create')}
       />
-    </View>
+    );
+  }
+
+  return (
+    <HomeScreen
+      onSelectCategory={category => {
+        setSelectedCategory(category);
+        setCurrentScreen('together');
+      }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
-
-export default App;
