@@ -73,6 +73,7 @@ const styles = StyleSheet.create({
     height: 26,
     resizeMode: 'contain',
     tintColor: '#3B82F6',
+    marginLeft: -2,
   },
   categoryLabel: {
     fontSize: 15,

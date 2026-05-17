@@ -2,10 +2,12 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type JoinOrCreateScreenProps = {
   onBack: () => void;
+  onJoin: () => void;
 };
 
 export default function JoinOrCreateScreen({
   onBack,
+  onJoin,
 }: JoinOrCreateScreenProps) {
   return (
     <View style={styles.container}>
@@ -23,7 +25,11 @@ export default function JoinOrCreateScreen({
       <Text style={styles.title}>어떻게 함께할까요?</Text>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={onJoin}
+          activeOpacity={0.85}
+        >
           <Text style={styles.buttonText}>참여하기</Text>
         </TouchableOpacity>
 
@@ -62,6 +68,7 @@ const styles = StyleSheet.create({
     height: 26,
     resizeMode: 'contain',
     tintColor: '#3B82F6',
+    marginLeft: -2,
   },
   title: {
     fontSize: 26,

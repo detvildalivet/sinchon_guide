@@ -12,10 +12,14 @@ import {
 export type PlaceCategory = '음식점' | '카페' | '술집';
 
 type HomeScreenProps = {
+  onOpenMap: () => void;
   onSelectCategory: (category: PlaceCategory) => void;
 };
 
-export default function HomeScreen({ onSelectCategory }: HomeScreenProps) {
+export default function HomeScreen({
+  onOpenMap,
+  onSelectCategory,
+}: HomeScreenProps) {
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
 
   return (
@@ -29,6 +33,17 @@ export default function HomeScreen({ onSelectCategory }: HomeScreenProps) {
           <Image
             source={require('../assets/icons/profile.png')}
             style={styles.profileIcon}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.mapButton}
+          onPress={onOpenMap}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={require('../assets/icons/map.png')}
+            style={styles.mapIcon}
           />
         </TouchableOpacity>
 
@@ -108,8 +123,30 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   profileIcon: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
+    tintColor: '#2563EB',
+  },
+  mapButton: {
+    position: 'absolute',
+    top: 60,
+    right: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mapIcon: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
+    tintColor: '#2563EB',
   },
   container: {
     flex: 1,
