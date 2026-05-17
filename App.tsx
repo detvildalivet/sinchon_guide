@@ -1,6 +1,9 @@
 import { useState } from 'react';
 
-import HomeScreen, { type PlaceCategory } from './src/screens/HomeScreen.tsx';
+import HomeScreen, {
+  type MockUser,
+  type PlaceCategory,
+} from './src/screens/HomeScreen.tsx';
 import JoinOrCreateScreen from './src/screens/JoinOrCreate.tsx';
 import JoinScreen from './src/screens/join.tsx';
 import MapScreen from './src/screens/MapScreen.tsx';
@@ -13,6 +16,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | null>(
     null,
   );
+  const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
 
   if (currentScreen === 'map') {
     return <MapScreen onBack={() => setCurrentScreen('home')} />;
@@ -51,6 +55,11 @@ export default function App() {
 
   return (
     <HomeScreen
+      currentUser={currentUser}
+      onLogin={user => {
+        setCurrentUser(user);
+      }}
+      onLogout={() => setCurrentUser(null)}
       onOpenMap={() => setCurrentScreen('map')}
       onSelectCategory={category => {
         setSelectedCategory(category);

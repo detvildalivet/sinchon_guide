@@ -7,20 +7,53 @@ import {
   Image,
   Modal,
   Pressable,
+  TextInput,
 } from 'react-native';
 
 export type PlaceCategory = '음식점' | '카페' | '술집';
+export type MockUser = {
+  id: string;
+  loginId: string;
+  name: string;
+};
 
 type HomeScreenProps = {
+  currentUser: MockUser | null;
+  onLogin: (user: MockUser) => void;
+  onLogout: () => void;
   onOpenMap: () => void;
   onSelectCategory: (category: PlaceCategory) => void;
 };
 
 export default function HomeScreen({
+  currentUser,
+  onLogin,
+  onLogout,
   onOpenMap,
   onSelectCategory,
 }: HomeScreenProps) {
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = () => {
+    const trimmedId = userId.trim();
+    const trimmedPassword = password.trim();
+
+    if (trimmedId.length === 0 || trimmedPassword.length === 0) {
+      return;
+    }
+
+    onLogin({
+      id: 'mock-user-1',
+      loginId: trimmedId,
+      name: trimmedId,
+    });
+
+    setIsProfileModalVisible(false);
+    setUserId('');
+    setPassword('');
+  };
 
   return (
     <>
@@ -87,18 +120,109 @@ export default function HomeScreen({
           onPress={() => setIsProfileModalVisible(false)}
         >
           <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>프로필</Text>
-            <Text style={styles.modalDescription}>
-              여기에 프로필, 설정, 로그아웃 같은 메뉴를 넣을 수 있습니다.
-            </Text>
+            {currentUser === null ? (
+              <>
+                <Text style={styles.modalTitle}>로그인</Text>
+                <Text style={styles.modalDescription}>
+                  YGS 계정으로 로그인해요
+                </Text>
 
-            <TouchableOpacity
-              style={styles.modalActionButton}
-              onPress={() => setIsProfileModalVisible(false)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.modalActionText}>닫기</Text>
-            </TouchableOpacity>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>아이디</Text>
+                  <TextInput
+                    value={userId}
+                    onChangeText={setUserId}
+                    placeholder="아이디를 입력하세요"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={styles.textInput}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>비밀번호</Text>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="비밀번호를 입력하세요"
+                    placeholderTextColor="#9CA3AF"
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={styles.textInput}
+                  />
+                </View>
+
+                <View style={styles.modalActionRow}>
+                  <TouchableOpacity
+                    style={styles.modalSecondaryButton}
+                    onPress={() => setIsProfileModalVisible(false)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.modalSecondaryText}>닫기</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalActionButton}
+                    onPress={handleLogin}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.modalActionText}>로그인</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.signUpButton}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.signUpText}>회원가입</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>내 프로필</Text>
+                <Text style={styles.modalDescription}>
+                  목업 로그인 상태로 표시되는 프로필 정보예요
+                </Text>
+
+                <View style={styles.profileInfoBlock}>
+                  <Text style={styles.profileLabel}>이름</Text>
+                  <Text style={styles.profileValue}>{currentUser.name}</Text>
+                </View>
+
+                <View style={styles.profileInfoBlock}>
+                  <Text style={styles.profileLabel}>로그인 ID</Text>
+                  <Text style={styles.profileValue}>{currentUser.loginId}</Text>
+                </View>
+
+                <View style={styles.profileInfoBlock}>
+                  <Text style={styles.profileLabel}>사용자 ID</Text>
+                  <Text style={styles.profileValue}>{currentUser.id}</Text>
+                </View>
+
+                <View style={styles.modalActionRow}>
+                  <TouchableOpacity
+                    style={styles.modalSecondaryButton}
+                    onPress={() => setIsProfileModalVisible(false)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.modalSecondaryText}>닫기</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalActionButton}
+                    onPress={() => {
+                      onLogout();
+                      setIsProfileModalVisible(false);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.modalActionText}>로그아웃</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -207,16 +331,53 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 12,
+    textAlign: 'center',
   },
   modalDescription: {
     fontSize: 15,
     lineHeight: 22,
     color: '#4B5563',
     marginBottom: 24,
+    textAlign: 'center',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  textInput: {
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: '#111827',
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 8,
+  },
+  modalSecondaryButton: {
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    backgroundColor: '#E5E7EB',
+  },
+  modalSecondaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
   },
   modalActionButton: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#222222',
+    backgroundColor: '#2563EB',
     borderRadius: 14,
     paddingHorizontal: 18,
     paddingVertical: 12,
@@ -225,5 +386,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  signUpButton: {
+    marginTop: 14,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  signUpText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  profileInfoBlock: {
+    marginBottom: 16,
+  },
+  profileLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    marginBottom: 6,
+  },
+  profileValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
   },
 });
