@@ -1,5 +1,4 @@
 apply plugin: "com.android.application"
-apply from: "../../node_modules/react-native-config/android/dotenv.gradle"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
@@ -73,29 +72,18 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
-Properties properties = new Properties()
-properties.load(project.rootProject.file('local.properties').newDataInputStream())
-def googleMapApiKey = properties.getProperty('google_map_api_key') // Map API SDK
-
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    externalNativeBuild {
-        cmake {
-            buildStagingDirectory "C:/tmp/cxx_build/${rootProject.name}/${project.name}"
-        }
-    }
-
-    namespace "com.myapp"
+    namespace "com.tablemate"
     defaultConfig {
-        applicationId "com.myapp"
+        applicationId "com.tablemate"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        manifestPlaceholders = [googleMapApiKey:googleMapApiKey] // Map API SDK
     }
     signingConfigs {
         debug {
