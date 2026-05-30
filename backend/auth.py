@@ -2,10 +2,10 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -15,22 +15,46 @@ SECRET_KEY = os.environ.get("SINCHON_JWT_SECRET", "dev-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
 
 
+def _to_bytes(password: str) -> bytes:
+    # bcrypt only uses the first 72 bytes; truncate to avoid a ValueError on longer input.
+    return password.encode("utf-8")[:72]
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_to_bytes(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(_to_bytes(plain), hashed.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None) -> str:
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_user_from_token(token: str, db: Session) -> Optional[User]:
+    """Decode a JWT and return the matching user, or None if invalid.
+
+    Used by the WebSocket endpoint, which authenticates via a `?token=` query
+    param since React Native cannot reliably set WebSocket headers.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id_str: Optional[str] = payload.get("sub")
+        if user_id_str is None:
+            return None
+        user_id = int(user_id_str)
+    except (JWTError, ValueError):
+        return None
+    return db.query(User).filter(User.id == user_id).first()
 
 
 def get_current_user(
@@ -42,16 +66,7 @@ def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id_str: Optional[str] = payload.get("sub")
-        if user_id_str is None:
-            raise credentials_exc
-        user_id = int(user_id_str)
-    except (JWTError, ValueError):
-        raise credentials_exc
-
-    user = db.query(User).filter(User.id == user_id).first()
+    user = get_user_from_token(token, db)
     if user is None:
         raise credentials_exc
     return user

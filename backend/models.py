@@ -30,8 +30,11 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     visits = relationship("Visit", back_populates="user", cascade="all, delete-orphan")
-    rooms_created = relationship("Room", back_populates="creator")
-    memberships = relationship("RoomMember", back_populates="user", cascade="all, delete-orphan")
+    queues_created = relationship("Queue", back_populates="creator")
+    queue_memberships = relationship(
+        "QueueMember", back_populates="user", cascade="all, delete-orphan"
+    )
+    messages = relationship("Message", back_populates="user")
 
 
 class Place(Base):
@@ -39,6 +42,7 @@ class Place(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     google_place_id = Column(String, unique=True, nullable=True, index=True)
+    slug = Column(String, unique=True, nullable=True, index=True)  # frontend id e.g. "r1"
     name = Column(String, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
@@ -48,11 +52,19 @@ class Place(Base):
         nullable=False,
         index=True,
     )
+    # Frontend display fields rendered verbatim (e.g. "한식 · 6분").
+    meta = Column(String, nullable=True)
+    note = Column(String, nullable=True)
+    menu_names = Column(JSON, default=list, nullable=False)  # PlacePin.menu: string[]
+    distance_minutes = Column(Integer, nullable=True)
     revisited_rate = Column(Float, default=0.0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     visits = relationship("Visit", back_populates="place", cascade="all, delete-orphan")
-    rooms = relationship("Room", back_populates="place", cascade="all, delete-orphan")
+    queues = relationship("Queue", back_populates="place", cascade="all, delete-orphan")
+    menu_items = relationship(
+        "MenuItem", back_populates="place", cascade="all, delete-orphan"
+    )
 
 
 class Visit(Base):
@@ -77,40 +89,95 @@ class Visit(Base):
     )
 
 
-class Room(Base):
-    __tablename__ = "rooms"
+class MenuItem(Base):
+    """A menu item carrying both display data and solo-recommendation scoring metadata.
+
+    venue_name / category / distance are denormalized so the recommendation response
+    matches the frontend SoloMenuRecommendation shape without a join.
+    """
+    __tablename__ = "menu_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, nullable=True, index=True)  # frontend id e.g. "sm1"
+    place_id = Column(Integer, ForeignKey("places.id"), nullable=True, index=True)
+    menu_name = Column(String, nullable=False)
+    venue_name = Column(String, nullable=False)
+    category = Column(
+        Enum("restaurant", "cafe", "bar", name="menu_category_enum"),
+        nullable=False,
+        index=True,
+    )
+    description = Column(String, nullable=False)
+    distance = Column(String, nullable=False)  # pre-formatted e.g. "도보 6분"
+    distance_minutes = Column(Integer, nullable=False)
+    tags = Column(JSON, default=list, nullable=False)
+    solo_score = Column(Float, nullable=False)
+    meal_slot = Column(
+        Enum("breakfast", "lunch", "snack", "dinner", "late", name="meal_slot_enum"),
+        nullable=False,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    place = relationship("Place", back_populates="menu_items")
+
+
+class Queue(Base):
+    """A waiting queue at a place. At most one open queue per place."""
+    __tablename__ = "queues"
 
     id = Column(Integer, primary_key=True, index=True)
     place_id = Column(Integer, ForeignKey("places.id"), nullable=False, index=True)
-    name = Column(String, nullable=False)
-    max_participants = Column(Integer, nullable=False)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     status = Column(
-        Enum("open", "closed", "completed", name="room_status_enum"),
+        Enum("open", "closed", name="queue_status_enum"),
         default="open",
         nullable=False,
         index=True,
     )
-    final_gathering_time = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    place = relationship("Place", back_populates="rooms")
-    creator = relationship("User", back_populates="rooms_created")
-    members = relationship("RoomMember", back_populates="room", cascade="all, delete-orphan")
+    place = relationship("Place", back_populates="queues")
+    creator = relationship("User", back_populates="queues_created")
+    members = relationship(
+        "QueueMember", back_populates="queue", cascade="all, delete-orphan"
+    )
+    messages = relationship(
+        "Message", back_populates="queue", cascade="all, delete-orphan"
+    )
 
 
-class RoomMember(Base):
-    __tablename__ = "room_members"
+class QueueMember(Base):
+    __tablename__ = "queue_members"
 
     id = Column(Integer, primary_key=True, index=True)
-    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=False, index=True)
+    queue_id = Column(Integer, ForeignKey("queues.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    available_times = Column(JSON, default=list, nullable=False)
     joined_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    room = relationship("Room", back_populates="members")
-    user = relationship("User", back_populates="memberships")
+    queue = relationship("Queue", back_populates="members")
+    user = relationship("User", back_populates="queue_memberships")
 
     __table_args__ = (
-        UniqueConstraint("room_id", "user_id", name="uq_room_member"),
+        UniqueConstraint("queue_id", "user_id", name="uq_queue_member"),
+    )
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    queue_id = Column(Integer, ForeignKey("queues.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # null = system
+    sender_type = Column(
+        Enum("system", "user", name="sender_type_enum"),
+        nullable=False,
+    )
+    body = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    queue = relationship("Queue", back_populates="messages")
+    user = relationship("User", back_populates="messages")
+
+    __table_args__ = (
+        Index("ix_messages_queue_created", "queue_id", "created_at"),
     )

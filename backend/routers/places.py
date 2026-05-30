@@ -59,6 +59,14 @@ def upsert_place(
     return place
 
 
+@router.get("/by-slug/{slug}", response_model=PlaceOut)
+def get_place_by_slug(slug: str, db: Session = Depends(get_db)):
+    place = db.query(Place).filter(Place.slug == slug).first()
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+    return place
+
+
 @router.get("/{place_id}", response_model=PlaceOut)
 def get_place(place_id: int, db: Session = Depends(get_db)):
     place = db.query(Place).filter(Place.id == place_id).first()

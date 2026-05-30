@@ -4,7 +4,9 @@ from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 PlaceType = Literal["restaurant", "cafe", "bar"]
-RoomStatus = Literal["open", "closed", "completed"]
+MealSlot = Literal["breakfast", "lunch", "snack", "dinner", "late"]
+QueueStatus = Literal["open", "closed"]
+SenderType = Literal["system", "user"]
 
 
 # ---------- Users ----------
@@ -50,25 +52,35 @@ class Token(BaseModel):
 
 class PlaceCreate(BaseModel):
     google_place_id: Optional[str] = None
+    slug: Optional[str] = None
     name: str
     latitude: float
     longitude: float
     address: Optional[str] = None
     place_type: PlaceType
+    meta: Optional[str] = None
+    note: Optional[str] = None
+    menu_names: list[str] = Field(default_factory=list)
+    distance_minutes: Optional[int] = None
 
 
 class PlaceOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: int
-    google_place_id: Optional[str]
+    google_place_id: Optional[str] = Field(default=None, alias="googlePlaceId")
+    slug: Optional[str]
     name: str
     latitude: float
     longitude: float
     address: Optional[str]
-    place_type: PlaceType
-    revisited_rate: float
-    created_at: datetime
+    place_type: PlaceType = Field(alias="placeType")
+    meta: Optional[str]
+    note: Optional[str]
+    menu_names: list[str] = Field(alias="menu")
+    distance_minutes: Optional[int] = Field(default=None, alias="distanceMinutes")
+    revisited_rate: float = Field(alias="revisitedRate")
+    created_at: datetime = Field(alias="createdAt")
 
 
 # ---------- Visits ----------
@@ -104,39 +116,64 @@ class VisitOut(BaseModel):
     created_at: datetime
 
 
-# ---------- Rooms ----------
+# ---------- Queues ----------
 
-class RoomCreate(BaseModel):
-    place_id: int
-    name: str
-    max_participants: int = Field(ge=2, le=20)
+class QueueCreate(BaseModel):
+    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
+    place_id: Optional[int] = Field(default=None, alias="placeId")
+    model_config = ConfigDict(populate_by_name=True)
 
 
-class RoomOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class QueueInfo(BaseModel):
+    """Matches frontend QueueInfo: { placeId, exists, waitingCount }."""
+    place_id: str = Field(alias="placeId")  # the Place.slug
+    exists: bool
+    waiting_count: int = Field(alias="waitingCount")
+    queue_id: Optional[int] = Field(default=None, alias="queueId")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class QueueOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
 
     id: int
-    place_id: int
-    name: str
-    max_participants: int
-    creator_id: int
-    status: RoomStatus
-    final_gathering_time: Optional[datetime]
-    created_at: datetime
-    current_participants: int
+    place_id: int = Field(alias="placeId")
+    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
+    status: QueueStatus
+    waiting_count: int = Field(alias="waitingCount")
+    created_at: datetime = Field(alias="createdAt")
 
 
-class RoomMemberPublic(BaseModel):
-    """Per-member view exposed to other room members — nickname only, no identifying info."""
-    model_config = ConfigDict(from_attributes=True)
+# ---------- Messages ----------
 
-    nickname: str
-    joined_at: datetime
+class MessageCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
 
 
-class RoomDetail(RoomOut):
-    members: list[RoomMemberPublic]
+class MessageOut(BaseModel):
+    """Matches frontend Message (+ identifiers). Client derives 'me' vs 'system'."""
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: int
+    queue_id: int = Field(alias="queueId")
+    user_id: Optional[int] = Field(default=None, alias="userId")
+    sender_type: SenderType = Field(alias="senderType")
+    body: str
+    created_at: datetime = Field(alias="createdAt")
 
 
-class AvailableTimesUpdate(BaseModel):
-    available_times: list[datetime]
+# ---------- Recommendations ----------
+
+class SoloMenuRecommendationOut(BaseModel):
+    """Matches frontend SoloMenuRecommendation exactly."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str  # MenuItem.code e.g. "sm1"
+    menu_name: str = Field(alias="menuName")
+    venue_name: str = Field(alias="venueName")
+    category: PlaceType
+    description: str
+    distance: str
+    tags: list[str]
+    score: float
+    reason: str

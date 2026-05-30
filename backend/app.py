@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import Base, engine
-from routers import places, rooms, users, visits
+from routers import places, queues, recommendations, users, visits
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,7 +19,8 @@ app.add_middleware(
 app.include_router(users.router)
 app.include_router(places.router)
 app.include_router(visits.router)
-app.include_router(rooms.router)
+app.include_router(queues.router)
+app.include_router(recommendations.router)
 
 
 @app.get("/")
