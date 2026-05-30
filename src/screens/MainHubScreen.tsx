@@ -1,0 +1,303 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AnimatedHint } from '../components/AnimatedHint';
+import { AppButton } from '../components/AppButton';
+import { AppDialog } from '../components/AppDialog';
+import { CardTransition } from '../components/CardTransition';
+import { MapStage } from '../components/MapStage';
+import { TAB_BAR_CLEARANCE, mapLayoutStyles } from '../design/mapLayout';
+import { shellStyles } from '../design/shellStyles';
+import { theme } from '../design/theme';
+import { recommendSoloMenus } from '../logic/soloMenuRecommendation';
+import { HomeTab, SoloMenuRecommendation, VenueCategory } from '../types/tablemate';
+
+type Props = {
+  activeTab: HomeTab;
+  onSelectCategory: (category: VenueCategory) => void;
+};
+
+export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
+  const insets = useSafeAreaInsets();
+  const isSolo = activeTab === 'solo';
+  const modeAnim = useRef(new Animated.Value(isSolo ? 1 : 0)).current;
+  const menuPanel = useRef(new Animated.Value(0)).current;
+  const [menuIndex, setMenuIndex] = useState(0);
+  const [selectedMenu, setSelectedMenu] = useState<SoloMenuRecommendation | null>(
+    null,
+  );
+  const [displayMenu, setDisplayMenu] = useState<SoloMenuRecommendation | null>(
+    null,
+  );
+  const [confirmed, setConfirmed] = useState(false);
+  const menus = useMemo(() => recommendSoloMenus(), []);
+  const visibleMenus = useMemo(() => {
+    const start = menuIndex % menus.length;
+
+    return [
+      menus[start % menus.length],
+      menus[(start + 1) % menus.length],
+      menus[(start + 2) % menus.length],
+    ];
+  }, [menuIndex, menus]);
+  const currentMenu = selectedMenu ?? visibleMenus[0];
+  const showNextMenu = () => {
+    const currentIndex = selectedMenu
+      ? menus.findIndex(menu => menu.id === selectedMenu.id)
+      : menuIndex;
+    const nextIndex = ((currentIndex < 0 ? menuIndex : currentIndex) + 1) % menus.length;
+
+    setMenuIndex(nextIndex);
+    setSelectedMenu(menus[nextIndex]);
+  };
+
+  useEffect(() => {
+    Animated.timing(modeAnim, {
+      toValue: isSolo ? 1 : 0,
+      duration: 280,
+      useNativeDriver: false,
+    }).start();
+
+    if (!isSolo) {
+      setSelectedMenu(null);
+      return;
+    }
+
+    setSelectedMenu(menus[menuIndex % menus.length]);
+  }, [isSolo, menuIndex, menus, modeAnim]);
+
+  useEffect(() => {
+    if (selectedMenu) {
+      setDisplayMenu(selectedMenu);
+    }
+
+    Animated.timing(menuPanel, {
+      toValue: selectedMenu ? 1 : 0,
+      duration: 260,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && !selectedMenu) {
+        setDisplayMenu(null);
+      }
+    });
+  }, [menuPanel, selectedMenu]);
+
+  const promptBackground = modeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.88)', 'rgba(15, 61, 145, 0.9)'],
+  });
+  const promptBorder = modeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.96)', 'rgba(255, 216, 77, 0.28)'],
+  });
+  const kickerBackground = modeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(15, 76, 207, 0.08)', 'rgba(255, 216, 77, 0.18)'],
+  });
+  const kickerColor = modeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.primary, theme.colors.accent],
+  });
+  const titleColor = modeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.text, theme.colors.textOnPrimary],
+  });
+  const descriptionColor = modeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.muted, '#DCE6FF'],
+  });
+
+  return (
+    <View style={[mapLayoutStyles.screenRoot, shellStyles.screen]}>
+      <MapStage
+        solo={isSolo}
+        onSelectCategory={onSelectCategory}
+      />
+
+      <Animated.View
+        pointerEvents="auto"
+        style={[
+          shellStyles.promptPanel,
+          {
+            top: insets.top + theme.spacing.xs,
+            backgroundColor: promptBackground,
+            borderColor: promptBorder,
+          },
+        ]}>
+        <Animated.Text
+          style={[
+            shellStyles.panelKicker,
+            {
+              backgroundColor: kickerBackground,
+              color: kickerColor,
+            },
+          ]}>
+          TableMate
+        </Animated.Text>
+        <Animated.Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.82}
+          style={[shellStyles.panelTitle, styles.panelTitle, { color: titleColor }]}>
+          {isSolo ? '혼자 먹기 좋은 메뉴' : '같이 먹을 곳을 골라볼까요?'}
+        </Animated.Text>
+        <Animated.Text
+          style={[shellStyles.panelDescription, { color: descriptionColor }]}>
+          {isSolo
+            ? '시간대와 거리, 혼밥 적합도로 추천해요. 핀을 눌러 메뉴를 확인하세요.'
+            : '지도 위 핀을 눌러 장소를 고르고, 밥친구 큐에 참여해요.'}
+        </Animated.Text>
+        <AnimatedHint
+          text={
+            isSolo
+              ? '다른 메뉴 버튼으로 추천을 바꿔요'
+              : '혼자 먹을 메뉴는 하단 혼밥 추천에서 확인해요'
+          }
+        />
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents={selectedMenu ? 'auto' : 'none'}
+        style={[
+          shellStyles.bottomPanel,
+          styles.menuPanel,
+          {
+            bottom: insets.bottom + TAB_BAR_CLEARANCE,
+            paddingBottom: theme.spacing.sm,
+            opacity: menuPanel,
+            transform: [
+              {
+                translateY: menuPanel.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [46, 0],
+                }),
+              },
+            ],
+          },
+        ]}>
+        {displayMenu ? (
+          <CardTransition transitionKey={displayMenu.id}>
+            <View style={styles.menuPanelContent}>
+              <View style={styles.previewHeader}>
+                <Text style={styles.previewKicker}>추천 메뉴</Text>
+                <Text style={styles.previewMeta}>{displayMenu.score}점</Text>
+              </View>
+              <Text style={styles.previewName}>{displayMenu.menuName}</Text>
+              <Text style={styles.previewVenue}>{displayMenu.venueName}</Text>
+              <Text style={styles.previewNote}>{displayMenu.reason}</Text>
+              <View style={styles.menuRow}>
+                {displayMenu.tags.map(tag => (
+                  <View key={tag} style={styles.menuChip}>
+                    <Text style={styles.menuText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.actionRow}>
+                <AppButton
+                  label="다른 메뉴"
+                  onPress={showNextMenu}
+                  variant="secondary"
+                  style={styles.secondaryAction}
+                />
+                <AppButton
+                  label="이 메뉴로 할게요"
+                  onPress={() => setConfirmed(true)}
+                  variant="accent"
+                  style={styles.primaryAction}
+                />
+              </View>
+            </View>
+          </CardTransition>
+        ) : null}
+      </Animated.View>
+
+      <AppDialog
+        visible={confirmed}
+        title="메뉴 선택 완료"
+        message={`${currentMenu.venueName} · ${currentMenu.menuName}로 정했어요.`}
+        confirmLabel="확인"
+        cancelLabel="닫기"
+        onConfirm={() => setConfirmed(false)}
+        onCancel={() => setConfirmed(false)}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  panelTitle: {
+    width: '100%',
+  },
+  menuPanel: {
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderColor: 'rgba(255, 255, 255, 0.98)',
+  },
+  menuPanelContent: {
+    gap: theme.spacing.xs,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  previewKicker: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.caption,
+    fontWeight: '900',
+  },
+  previewMeta: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption,
+    fontWeight: '800',
+  },
+  previewName: {
+    color: theme.colors.text,
+    fontSize: theme.typography.heading,
+    fontWeight: '900',
+  },
+  previewVenue: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.caption,
+    fontWeight: '800',
+  },
+  previewNote: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+  },
+  menuChip: {
+    borderRadius: theme.radius.pill,
+    backgroundColor: 'rgba(15, 76, 207, 0.08)',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  menuText: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+  },
+  primaryAction: {
+    flex: 1.25,
+  },
+  secondaryAction: {
+    flex: 1,
+  },
+});

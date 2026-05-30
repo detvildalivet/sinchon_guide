@@ -1,0 +1,80 @@
+import React, { PropsWithChildren } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import MapView, { MapViewProps, UrlTile } from 'react-native-maps';
+import { MapRegion } from '../services/locationService';
+
+type Props = PropsWithChildren<{
+  region: MapRegion;
+  variant?: 'together' | 'solo';
+  onMapPress?: () => void;
+  mapProps?: Partial<MapViewProps>;
+}>;
+
+export function LiveMapView({
+  region,
+  variant = 'together',
+  onMapPress,
+  mapProps,
+  children,
+}: Props) {
+  const solo = variant === 'solo';
+
+  return (
+    <View style={styles.wrap} pointerEvents="box-none">
+      <MapView
+        style={styles.map}
+        initialRegion={region}
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+        showsUserLocation
+        showsMyLocationButton={false}
+        showsCompass={false}
+        toolbarEnabled={false}
+        zoomEnabled
+        scrollEnabled
+        pitchEnabled={false}
+        rotateEnabled={false}
+        onPress={
+          onMapPress
+            ? event => {
+                if (event.nativeEvent.action !== 'marker-press') {
+                  onMapPress();
+                }
+              }
+            : undefined
+        }
+        {...mapProps}>
+        {Platform.OS === 'android' ? (
+          <UrlTile
+            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maximumZ={19}
+            flipY={false}
+            shouldReplaceMapContent
+          />
+        ) : null}
+        {children}
+      </MapView>
+      <View
+        pointerEvents="none"
+        style={[styles.veil, solo ? styles.veilSolo : styles.veilTogether]}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: {
+    ...StyleSheet.absoluteFill,
+  },
+  map: {
+    ...StyleSheet.absoluteFill,
+  },
+  veil: {
+    ...StyleSheet.absoluteFill,
+  },
+  veilTogether: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  veilSolo: {
+    backgroundColor: 'rgba(8, 23, 65, 0.18)',
+  },
+});
