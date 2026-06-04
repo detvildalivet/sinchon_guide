@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   StyleSheet,
   Text,
@@ -13,6 +14,15 @@ import { QueueStatusCard } from '../components/QueueStatusCard';
 import { mapLayoutStyles } from '../design/mapLayout';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
+import { useAuth } from '../auth/AuthContext';
+import { WS_BASE } from '../api/config';
+import {
+  createQueue,
+  fetchMessages,
+  joinQueue,
+  postMessage,
+} from '../api/client';
+import { ApiMessage } from '../api/types';
 import { QueueMode, VenueCategory } from '../types/tablemate';
 
 const categoryLabels: Record<VenueCategory, string> = {
@@ -21,39 +31,60 @@ const categoryLabels: Record<VenueCategory, string> = {
   bar: '술집',
 };
 
-type Message = {
+type ChatMessage = {
   id: number;
-  sender: 'system' | 'me';
+  sender: 'system' | 'me' | 'other';
   body: string;
 };
 
 type Props = {
   category: VenueCategory;
   placeName: string;
+  placeSlug: string;
   mode: QueueMode;
-  waitingCount: number;
+  queueId: number | null;
+  initialWaitingCount: number;
 };
 
 export function QueueScreen({
   category,
   placeName,
+  placeSlug,
   mode,
-  waitingCount,
+  queueId,
+  initialWaitingCount,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { token, userId } = useAuth();
   const [joined, setJoined] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [waitingCount, setWaitingCount] = useState(initialWaitingCount);
+  const [activeQueueId, setActiveQueueId] = useState<number | null>(queueId);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const panelAnim = useRef(new Animated.Value(0)).current;
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      sender: 'system',
-      body:
-        mode === 'create'
-          ? `${placeName} 큐를 준비했어요. 생성하면 다른 사람이 조인할 수 있어요.`
-          : `${placeName} 큐에 ${waitingCount}명이 함께 기다리고 있어요.`,
-    },
-  ]);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  const mapMessage = useCallback(
+    (m: ApiMessage): ChatMessage => ({
+      id: m.id,
+      sender:
+        m.senderType === 'system'
+          ? 'system'
+          : m.userId === userId
+            ? 'me'
+            : 'other',
+      body: m.body,
+    }),
+    [userId],
+  );
+
+  const appendMessage = useCallback((incoming: ChatMessage) => {
+    setMessages(current =>
+      current.some(m => m.id === incoming.id) ? current : [...current, incoming],
+    );
+  }, []);
 
   useEffect(() => {
     panelAnim.setValue(0);
@@ -64,35 +95,86 @@ export function QueueScreen({
     }).start();
   }, [joined, panelAnim]);
 
-  const sendMessage = () => {
-    const body = draft.trim();
-    if (!body) {
+  // Open the chat WebSocket once we have joined and know the queue id.
+  useEffect(() => {
+    if (!joined || activeQueueId === null || !token) {
       return;
     }
+    const ws = new WebSocket(
+      `${WS_BASE}/queues/${activeQueueId}/ws?token=${encodeURIComponent(token)}`,
+    );
+    wsRef.current = ws;
 
-    setMessages(current => [
-      ...current,
-      {
-        id: Date.now(),
-        sender: 'me',
-        body,
-      },
-    ]);
-    setDraft('');
+    ws.onmessage = event => {
+      try {
+        const payload = JSON.parse(event.data as string);
+        if (payload.type === 'message' && payload.message) {
+          appendMessage(mapMessage(payload.message as ApiMessage));
+        } else if (payload.type === 'presence') {
+          setWaitingCount(payload.waitingCount);
+        }
+      } catch {
+        // ignore malformed frames
+      }
+    };
+    ws.onerror = () => {
+      setError('실시간 연결에 문제가 있어요. 메시지는 전송으로 보낼 수 있어요.');
+    };
+
+    return () => {
+      wsRef.current = null;
+      ws.close();
+    };
+  }, [joined, activeQueueId, token, appendMessage, mapMessage]);
+
+  const enterChat = async (resolvedQueueId: number) => {
+    setActiveQueueId(resolvedQueueId);
+    try {
+      const history = await fetchMessages(resolvedQueueId);
+      setMessages(history.map(mapMessage));
+    } catch {
+      setMessages([]);
+    }
+    setJoined(true);
   };
 
-  const handlePrimaryAction = () => {
-    setJoined(true);
+  const handlePrimaryAction = async () => {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      if (mode === 'create' || queueId === null) {
+        const queue = await createQueue(placeSlug);
+        setWaitingCount(queue.waitingCount);
+        await enterChat(queue.id);
+      } else {
+        const queue = await joinQueue(queueId);
+        setWaitingCount(queue.waitingCount);
+        await enterChat(queue.id);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '큐 참여에 실패했어요.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
-    if (mode === 'create') {
-      setMessages(current => [
-        ...current,
-        {
-          id: Date.now(),
-          sender: 'system',
-          body: '큐가 열렸어요. 이제 다른 사람이 조인할 수 있어요.',
-        },
-      ]);
+  const sendMessage = () => {
+    const body = draft.trim();
+    if (!body || activeQueueId === null) {
+      return;
+    }
+    setDraft('');
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'message', body }));
+    } else {
+      // REST fallback; the message is broadcast back and appended via dedupe.
+      postMessage(activeQueueId, body)
+        .then(m => appendMessage(mapMessage(m)))
+        .catch(() => setError('메시지 전송에 실패했어요.'));
     }
   };
 
@@ -155,18 +237,29 @@ export function QueueScreen({
             <>
               <Text style={styles.panelKicker}>밥친구 큐</Text>
               <QueueStatusCard mode={mode} waitingCount={waitingCount} />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
               <View style={styles.actionRow}>
-                <AppButton
-                  label={mode === 'create' ? '큐 생성하기' : '큐 조인'}
-                  onPress={handlePrimaryAction}
-                  variant="accent"
-                  style={styles.primaryAction}
-                />
+                {busy ? (
+                  <ActivityIndicator
+                    color={theme.colors.primary}
+                    style={styles.primaryAction}
+                  />
+                ) : (
+                  <AppButton
+                    label={mode === 'create' ? '큐 생성하기' : '큐 조인'}
+                    onPress={handlePrimaryAction}
+                    variant="accent"
+                    style={styles.primaryAction}
+                  />
+                )}
               </View>
             </>
           ) : (
             <>
-              <Text style={styles.panelKicker}>채팅방</Text>
+              <Text style={styles.panelKicker}>
+                채팅방 · {waitingCount}명 대기 중
+              </Text>
+              {error ? <Text style={styles.error}>{error}</Text> : null}
               <View style={styles.messages}>
                 {messages.map(message => (
                   <View
@@ -174,11 +267,13 @@ export function QueueScreen({
                     style={[
                       styles.message,
                       message.sender === 'me' && styles.myMessage,
+                      message.sender === 'system' && styles.systemMessage,
                     ]}>
                     <Text
                       style={[
                         styles.messageText,
                         message.sender === 'me' && styles.myMessageText,
+                        message.sender === 'system' && styles.systemMessageText,
                       ]}>
                       {message.body}
                     </Text>
@@ -256,6 +351,11 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption,
     fontWeight: '900',
   },
+  error: {
+    color: '#D92D20',
+    fontSize: theme.typography.caption,
+    fontWeight: '700',
+  },
   actionRow: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
@@ -286,6 +386,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     backgroundColor: theme.colors.primary,
   },
+  systemMessage: {
+    alignSelf: 'center',
+    backgroundColor: 'transparent',
+  },
   messageText: {
     color: theme.colors.text,
     fontSize: theme.typography.body,
@@ -293,6 +397,11 @@ const styles = StyleSheet.create({
   },
   myMessageText: {
     color: theme.colors.surface,
+  },
+  systemMessageText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption,
+    fontWeight: '700',
   },
   composer: {
     flexDirection: 'row',

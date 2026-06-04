@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MapPinAnchor, getMapPinPoint } from './MapPinAnchor';
 import { theme } from '../design/theme';
-import { VenueCategory } from '../types/tablemate';
 
 export type PlacePin = {
   id: string;
@@ -14,38 +13,20 @@ export type PlacePin = {
   left: number;
 };
 
-export const places: Record<VenueCategory, PlacePin[]> = {
-  restaurant: [
-    { id: 'r1', name: '소담한상', meta: '한식 · 6분', note: '든든한 점심으로 좋은 한상 메뉴', menu: ['제육 한상', '된장찌개', '불고기 정식'], top: 39, left: 18 },
-    { id: 'r2', name: '멘야 테이블', meta: '라멘 · 9분', note: '혼밥도 편한 바 좌석 중심', menu: ['쇼유 라멘', '차슈덮밥', '교자'], top: 56, left: 64 },
-    { id: 'r3', name: '오늘분식', meta: '분식 · 4분', note: '가볍게 나눠 먹기 좋은 분식집', menu: ['떡볶이', '김밥', '튀김 세트'], top: 72, left: 35 },
-  ],
-  cafe: [
-    { id: 'c1', name: '브루 포인트', meta: '커피 · 4분', note: '조용히 대화하기 좋은 창가 자리', menu: ['핸드드립', '바닐라 라떼', '크루아상'], top: 38, left: 61 },
-    { id: 'c2', name: '라운드 디저트', meta: '디저트 · 8분', note: '케이크와 커피를 같이 고르기 좋음', menu: ['딸기 케이크', '아메리카노', '피낭시에'], top: 60, left: 21 },
-    { id: 'c3', name: '모닝 컵', meta: '라떼 · 5분', note: '짧게 들르기 좋은 가까운 카페', menu: ['카페라떼', '소금빵', '콜드브루'], top: 72, left: 67 },
-  ],
-  bar: [
-    { id: 'b1', name: '노을포차', meta: '맥주 · 7분', note: '편하게 이야기하기 좋은 포차 분위기', menu: ['생맥주', '닭똥집', '해물파전'], top: 42, left: 24 },
-    { id: 'b2', name: '바 테이블', meta: '하이볼 · 11분', note: '가볍게 한 잔 하기 좋은 하이볼 바', menu: ['레몬 하이볼', '감바스', '프렌치프라이'], top: 58, left: 66 },
-    { id: 'b3', name: '문라이트', meta: '와인 · 9분', note: '조용한 와인 한 잔에 잘 맞는 곳', menu: ['하우스 와인', '치즈 플래터', '브루스케타'], top: 73, left: 42 },
-  ],
-};
-
 const PLACE_PIN_OFFSET_Y = -12;
 
 export function isTouchNearPlacePin(
   x: number,
   y: number,
   layout: { width: number; height: number },
-  category: VenueCategory,
+  placeList: PlacePin[],
   radius = 56,
 ) {
   if (layout.width === 0 || layout.height === 0) {
     return false;
   }
 
-  return places[category].some(place => {
+  return placeList.some(place => {
     const point = getMapPinPoint(place.top, place.left, layout);
     const dx = x - point.x;
     const dy = y - point.y;
@@ -55,19 +36,19 @@ export function isTouchNearPlacePin(
 }
 
 type Props = {
-  category: VenueCategory;
+  places: PlacePin[];
   selectedPlaceId?: string;
   onSelectPlace?: (place: PlacePin) => void;
 };
 
 export function FloatingPlacePins({
-  category,
+  places,
   selectedPlaceId,
   onSelectPlace,
 }: Props) {
   return (
     <View pointerEvents="box-none" style={styles.layer}>
-      {places[category].map((place, index) => (
+      {places.map((place, index) => (
         <FloatingPin
           key={place.id}
           place={place}

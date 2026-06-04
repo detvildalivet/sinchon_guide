@@ -13,14 +13,16 @@ import { AnimatedHint } from '../components/AnimatedHint';
 import { AppButton } from '../components/AppButton';
 import { CardTransition } from '../components/CardTransition';
 import { CategorySwitcher } from '../components/CategorySwitcher';
-import { PlacePin, places } from '../components/FloatingPlacePins';
+import { PlacePin } from '../components/FloatingPlacePins';
 import { LiveMapView } from '../components/LiveMapView';
 import { QueueStatusCard } from '../components/QueueStatusCard';
 import { mapLayoutStyles } from '../design/mapLayout';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
-import { getQueueInfo } from '../logic/queueService';
+import { usePlaces } from '../hooks/usePlaces';
+import { fetchQueueInfo } from '../api/client';
+import { ApiQueueInfo } from '../api/types';
 import {
   MapCoordinate,
   offsetCoordinate,
@@ -36,7 +38,12 @@ const categoryLabels: Record<VenueCategory, string> = {
 
 type Props = {
   category: VenueCategory;
-  onQueue: (place: PlacePin, mode: QueueMode) => void;
+  onQueue: (
+    place: PlacePin,
+    mode: QueueMode,
+    queueId: number | null,
+    waitingCount: number,
+  ) => void;
   onHomePress: () => void;
   onCategoryChange: (category: VenueCategory) => void;
 };
@@ -49,19 +56,50 @@ export function PreferenceScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { center, loading } = useUserLocation();
+  const { places: placeList, loading: placesLoading } = usePlaces(category);
   const [selectedPlace, setSelectedPlace] = useState<PlacePin | null>(null);
   const [displayPlace, setDisplayPlace] = useState<PlacePin | null>(null);
+  const [queueInfo, setQueueInfo] = useState<ApiQueueInfo | null>(null);
   const categoryPanel = useState(() => new Animated.Value(1))[0];
   const placePanel = useState(() => new Animated.Value(0))[0];
   const placeCoordinates = useMemo(
-    () => getPlaceCoordinates(center, category),
-    [category, center],
+    () => getPlaceCoordinates(center, placeList),
+    [placeList, center],
   );
   const mapRegion = useMemo(() => regionAround(center, 0.014, 0.014), [center]);
 
   useEffect(() => {
     setSelectedPlace(null);
   }, [category]);
+
+  // Fetch live queue status whenever a place is selected.
+  useEffect(() => {
+    if (!displayPlace) {
+      setQueueInfo(null);
+      return;
+    }
+    let active = true;
+    setQueueInfo(null);
+    fetchQueueInfo(displayPlace.id)
+      .then(info => {
+        if (active) {
+          setQueueInfo(info);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setQueueInfo({
+            placeId: displayPlace.id,
+            exists: false,
+            waitingCount: 0,
+            queueId: null,
+          });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [displayPlace]);
 
   useEffect(() => {
     if (selectedPlace) {
@@ -89,10 +127,12 @@ export function PreferenceScreen({
   return (
     <View style={mapLayoutStyles.screenRoot}>
       <View style={mapLayoutStyles.mapViewport}>
-        {loading ? (
+        {loading || placesLoading ? (
           <View style={styles.loading}>
             <ActivityIndicator color={theme.colors.primary} size="large" />
-            <Text style={styles.loadingText}>현재 위치를 불러오는 중...</Text>
+            <Text style={styles.loadingText}>
+              {loading ? '현재 위치를 불러오는 중...' : '주변 장소를 불러오는 중...'}
+            </Text>
           </View>
         ) : (
           <LiveMapView
@@ -101,7 +141,7 @@ export function PreferenceScreen({
             mapProps={{
               region: mapRegion,
             }}>
-            {places[category].map(place => (
+            {placeList.map(place => (
               <Marker
                 key={place.id}
                 coordinate={placeCoordinates[place.id]}
@@ -208,27 +248,33 @@ export function PreferenceScreen({
                     </View>
                   ))}
                 </View>
-                {(() => {
-                  const queueInfo = getQueueInfo(displayPlace.id);
-
-                  return (
-                    <>
-                      <QueueStatusCard
-                        mode={queueInfo.exists ? 'join' : 'create'}
-                        waitingCount={queueInfo.waitingCount}
-                        compact
-                      />
-                      <AppButton
-                        label={queueInfo.exists ? '큐 조인' : '큐 생성하기'}
-                        onPress={() =>
-                          onQueue(displayPlace, queueInfo.exists ? 'join' : 'create')
-                        }
-                        variant="accent"
-                        style={styles.queueAction}
-                      />
-                    </>
-                  );
-                })()}
+                {queueInfo === null ? (
+                  <ActivityIndicator
+                    color={theme.colors.primary}
+                    style={styles.queueAction}
+                  />
+                ) : (
+                  <>
+                    <QueueStatusCard
+                      mode={queueInfo.exists ? 'join' : 'create'}
+                      waitingCount={queueInfo.waitingCount}
+                      compact
+                    />
+                    <AppButton
+                      label={queueInfo.exists ? '큐 조인' : '큐 생성하기'}
+                      onPress={() =>
+                        onQueue(
+                          displayPlace,
+                          queueInfo.exists ? 'join' : 'create',
+                          queueInfo.queueId,
+                          queueInfo.waitingCount,
+                        )
+                      }
+                      variant="accent"
+                      style={styles.queueAction}
+                    />
+                  </>
+                )}
               </>
             </CardTransition>
           ) : null}
@@ -246,9 +292,9 @@ const markerColors: Record<VenueCategory, string> = {
 
 function getPlaceCoordinates(
   center: MapCoordinate,
-  category: VenueCategory,
+  placeList: PlacePin[],
 ): Record<string, MapCoordinate> {
-  return places[category].reduce((acc, place) => {
+  return placeList.reduce((acc, place) => {
     const metersNorth = (50 - place.top) * 14;
     const metersEast = (place.left - 50) * 14;
     acc[place.id] = offsetCoordinate(center, metersNorth, metersEast);

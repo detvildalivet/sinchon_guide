@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   StyleSheet,
   Text,
@@ -14,7 +15,7 @@ import { MapStage } from '../components/MapStage';
 import { TAB_BAR_CLEARANCE, mapLayoutStyles } from '../design/mapLayout';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
-import { recommendSoloMenus } from '../logic/soloMenuRecommendation';
+import { useSoloRecommendations } from '../hooks/useSoloRecommendations';
 import { HomeTab, SoloMenuRecommendation, VenueCategory } from '../types/tablemate';
 
 type Props = {
@@ -35,8 +36,11 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
     null,
   );
   const [confirmed, setConfirmed] = useState(false);
-  const menus = useMemo(() => recommendSoloMenus(), []);
+  const { menus, loading: menusLoading } = useSoloRecommendations();
   const visibleMenus = useMemo(() => {
+    if (menus.length === 0) {
+      return [] as SoloMenuRecommendation[];
+    }
     const start = menuIndex % menus.length;
 
     return [
@@ -45,8 +49,11 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
       menus[(start + 2) % menus.length],
     ];
   }, [menuIndex, menus]);
-  const currentMenu = selectedMenu ?? visibleMenus[0];
+  const currentMenu = selectedMenu ?? visibleMenus[0] ?? null;
   const showNextMenu = () => {
+    if (menus.length === 0) {
+      return;
+    }
     const currentIndex = selectedMenu
       ? menus.findIndex(menu => menu.id === selectedMenu.id)
       : menuIndex;
@@ -68,7 +75,9 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
       return;
     }
 
-    setSelectedMenu(menus[menuIndex % menus.length]);
+    if (menus.length > 0) {
+      setSelectedMenu(menus[menuIndex % menus.length]);
+    }
   }, [isSolo, menuIndex, menus, modeAnim]);
 
   useEffect(() => {
@@ -118,6 +127,12 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
         solo={isSolo}
         onSelectCategory={onSelectCategory}
       />
+
+      {isSolo && menusLoading ? (
+        <View style={styles.menuLoading} pointerEvents="none">
+          <ActivityIndicator color={theme.colors.accent} size="large" />
+        </View>
+      ) : null}
 
       <Animated.View
         pointerEvents="auto"
@@ -217,9 +232,13 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
       </Animated.View>
 
       <AppDialog
-        visible={confirmed}
+        visible={confirmed && currentMenu !== null}
         title="메뉴 선택 완료"
-        message={`${currentMenu.venueName} · ${currentMenu.menuName}로 정했어요.`}
+        message={
+          currentMenu
+            ? `${currentMenu.venueName} · ${currentMenu.menuName}로 정했어요.`
+            : ''
+        }
         confirmLabel="확인"
         cancelLabel="닫기"
         onConfirm={() => setConfirmed(false)}
@@ -232,6 +251,15 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
 const styles = StyleSheet.create({
   panelTitle: {
     width: '100%',
+  },
+  menuLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   menuPanel: {
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
