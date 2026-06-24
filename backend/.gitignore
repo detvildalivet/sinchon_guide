@@ -1,2 +1,12 @@
 # SQLite database
 *.db
+
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.pycache
+.pytest_cache/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
