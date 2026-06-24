@@ -12,15 +12,6 @@ export type QueueInfo = {
   waitingCount: number;
 };
 
-export type Recommendation = {
-  id: string;
-  category: VenueCategory;
-  name: string;
-  description: string;
-  distance: string;
-  tags: string[];
-};
-
 export type SoloMenuRecommendation = {
   id: string;
   menuName: string;
@@ -32,4 +23,3 @@ export type SoloMenuRecommendation = {
   score: number;
   reason: string;
 };
-
