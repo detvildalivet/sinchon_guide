@@ -7,6 +7,7 @@ import {
   ApiQueueInfo,
   ApiQueueOut,
   ApiUser,
+  ApiVisit,
 } from './types';
 
 export class ApiError extends Error {
@@ -153,4 +154,10 @@ export function fetchSoloRecommendations(
   hour: number,
 ): Promise<SoloMenuRecommendation[]> {
   return apiFetch(`/recommendations/solo?hour=${hour}`, { auth: false });
+}
+
+// ---------- Visits ----------
+
+export function getMyVisits(): Promise<ApiVisit[]> {
+  return apiFetch('/visits/me');
 }

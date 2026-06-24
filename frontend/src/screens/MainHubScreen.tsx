@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -21,9 +22,10 @@ import { HomeTab, SoloMenuRecommendation, VenueCategory } from '../types/tablema
 type Props = {
   activeTab: HomeTab;
   onSelectCategory: (category: VenueCategory) => void;
+  onProfilePress: () => void;
 };
 
-export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
+export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: Props) {
   const insets = useSafeAreaInsets();
   const isSolo = activeTab === 'solo';
   const modeAnim = useRef(new Animated.Value(isSolo ? 1 : 0)).current;
@@ -122,7 +124,64 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
   });
 
   return (
-    <View style={[mapLayoutStyles.screenRoot, shellStyles.screen]}>
+    <View style={[mapLayoutStyles.screenRoot, shellStyles.screen, { paddingTop: insets.top }]}> 
+      <View style={[styles.headerWrapper, { top: insets.top + theme.spacing.xs }]}> 
+        <Animated.View
+          pointerEvents="auto"
+          style={[
+            shellStyles.promptPanel,
+            styles.headerPromptPanel,
+            {
+              backgroundColor: promptBackground,
+              borderColor: promptBorder,
+            },
+          ]}>
+          <Animated.Text
+            style={[
+              shellStyles.panelKicker,
+              {
+                backgroundColor: kickerBackground,
+                color: kickerColor,
+              },
+            ]}>
+            TableMate
+          </Animated.Text>
+          <Animated.Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
+            style={[shellStyles.panelTitle, styles.panelTitle, { color: titleColor }]}> 
+            {isSolo ? '혼자 먹기 좋은 메뉴' : '같이 먹을 곳을 골라볼까요?'}
+          </Animated.Text>
+          <Animated.Text
+            style={[shellStyles.panelDescription, { color: descriptionColor }]}> 
+            {isSolo
+              ? '시간대와 거리, 혼밥 적합도로 추천해요. 핀을 눌러 메뉴를 확인하세요.'
+              : '지도 위 핀을 눌러 장소를 고르고, 밥친구 큐에 참여해요.'}
+          </Animated.Text>
+          <AnimatedHint
+            text={
+              isSolo
+                ? '다른 메뉴 버튼으로 추천을 바꿔요'
+                : '혼자 먹을 메뉴는 하단 혼밥 추천에서 확인해요'
+            }
+          />
+        </Animated.View>
+
+        <View style={styles.profileRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="프로필"
+            onPress={onProfilePress}
+            style={({ pressed }) => [
+              styles.profileButton,
+              pressed && styles.pressed,
+            ]}>
+            <Text style={styles.profileIcon}>👤</Text>
+          </Pressable>
+        </View>
+      </View>
+
       <MapStage
         solo={isSolo}
         onSelectCategory={onSelectCategory}
@@ -133,48 +192,6 @@ export function MainHubScreen({ activeTab, onSelectCategory }: Props) {
           <ActivityIndicator color={theme.colors.accent} size="large" />
         </View>
       ) : null}
-
-      <Animated.View
-        pointerEvents="auto"
-        style={[
-          shellStyles.promptPanel,
-          {
-            top: insets.top + theme.spacing.xs,
-            backgroundColor: promptBackground,
-            borderColor: promptBorder,
-          },
-        ]}>
-        <Animated.Text
-          style={[
-            shellStyles.panelKicker,
-            {
-              backgroundColor: kickerBackground,
-              color: kickerColor,
-            },
-          ]}>
-          TableMate
-        </Animated.Text>
-        <Animated.Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.82}
-          style={[shellStyles.panelTitle, styles.panelTitle, { color: titleColor }]}>
-          {isSolo ? '혼자 먹기 좋은 메뉴' : '같이 먹을 곳을 골라볼까요?'}
-        </Animated.Text>
-        <Animated.Text
-          style={[shellStyles.panelDescription, { color: descriptionColor }]}>
-          {isSolo
-            ? '시간대와 거리, 혼밥 적합도로 추천해요. 핀을 눌러 메뉴를 확인하세요.'
-            : '지도 위 핀을 눌러 장소를 고르고, 밥친구 큐에 참여해요.'}
-        </Animated.Text>
-        <AnimatedHint
-          text={
-            isSolo
-              ? '다른 메뉴 버튼으로 추천을 바꿔요'
-              : '혼자 먹을 메뉴는 하단 혼밥 추천에서 확인해요'
-          }
-        />
-      </Animated.View>
 
       <Animated.View
         pointerEvents={selectedMenu ? 'auto' : 'none'}
@@ -265,6 +282,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderColor: 'rgba(255, 255, 255, 0.98)',
   },
+  headerWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 15,
+  },
+  headerPromptPanel: {
+    position: 'relative',
+    left: 0,
+    right: 0,
+    width: '100%',
+    zIndex: 1,
+  },
   menuPanelContent: {
     gap: theme.spacing.xs,
   },
@@ -327,5 +357,29 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     flex: 1,
+  },
+  profileButton: {
+    width: 50,
+    height: 50,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadow.soft,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
+  },
+  profileIcon: {
+    fontSize: 24,
+  },
+  pressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.98 }],
   },
 });

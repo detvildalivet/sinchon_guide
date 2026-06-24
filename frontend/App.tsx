@@ -6,7 +6,6 @@ import {
 import { AppDialog } from './src/components/AppDialog';
 import { MainTabBar } from './src/components/MainTabBar';
 import { ScreenTransition } from './src/components/ScreenTransition';
-import { TopNav } from './src/components/TopNav';
 import { PlacePin } from './src/components/FloatingPlacePins';
 import { layoutStyles } from './src/design/layout';
 import { theme } from './src/design/theme';
@@ -15,7 +14,8 @@ import { AuthScreen } from './src/screens/AuthScreen';
 import { MainHubScreen } from './src/screens/MainHubScreen';
 import { PreferenceScreen } from './src/screens/PreferenceScreen';
 import { QueueScreen } from './src/screens/QueueScreen';
-import { AppRoute, HomeTab, QueueMode, VenueCategory } from './src/types/tablemate';
+import { ProfileScreen } from './src/screens/ProfileScreen';
+import { HomeTab, QueueMode, VenueCategory } from './src/types/tablemate';
 
 function App() {
   return (
@@ -53,7 +53,7 @@ type SelectedQueue = {
 
 function AppContent() {
   const { user, logout } = useAuth();
-  const [route, setRoute] = useState<AppRoute>('home');
+  const [route, setRoute] = useState<'home' | 'preference' | 'queue' | 'profile'>('home');
   const [homeTab, setHomeTab] = useState<HomeTab>('together');
   const [category, setCategory] = useState<VenueCategory | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlacePin | null>(null);
@@ -93,8 +93,13 @@ function AppContent() {
         <MainHubScreen
           activeTab={homeTab}
           onSelectCategory={selectCategory}
+          onProfilePress={() => setRoute('profile')}
         />
       );
+    }
+
+    if (route === 'profile') {
+      return <ProfileScreen onBackPress={() => setRoute('home')} />;
     }
 
     if (route === 'preference' && category !== null) {
@@ -117,29 +122,18 @@ function AppContent() {
           mode={queueMode}
           queueId={selectedQueue.queueId}
           initialWaitingCount={selectedQueue.waitingCount}
+          onBack={() => setRoute('preference')}
         />
       );
     }
 
-    return (
-      <MainHubScreen
-        activeTab={homeTab}
-        onSelectCategory={selectCategory}
-      />
-    );
+    return null;
   };
 
   const showMainTabBar = route === 'home' && category === null;
 
   return (
     <View style={[styles.container, layoutStyles.screen]}>
-      {route !== 'home' && route !== 'preference' && category !== null ? (
-        <TopNav
-          onHomePress={goHome}
-          onProfilePress={() => setDialog('profile')}
-          onMapPress={() => setDialog('map')}
-        />
-      ) : null}
       <ScreenTransition transitionKey={`${route}-${category ?? 'none'}`}>
         {renderScreen()}
       </ScreenTransition>

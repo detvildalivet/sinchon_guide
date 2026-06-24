@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -44,6 +45,7 @@ type Props = {
   mode: QueueMode;
   queueId: number | null;
   initialWaitingCount: number;
+  onBack: () => void;
 };
 
 export function QueueScreen({
@@ -53,6 +55,7 @@ export function QueueScreen({
   mode,
   queueId,
   initialWaitingCount,
+  onBack,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { token, userId } = useAuth();
@@ -203,6 +206,13 @@ export function QueueScreen({
           },
         ]}>
         <View style={styles.promptTopRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="뒤로가기"
+            onPress={onBack}
+            style={({ pressed }) => [styles.backTag, pressed && styles.pressed]}>
+            <Text style={styles.backTagText}>{'< 뒤로'}</Text>
+          </Pressable>
           <Text style={styles.eyebrow}>{categoryLabels[category]}</Text>
         </View>
         <Text style={styles.question}>{placeName}</Text>
@@ -315,7 +325,8 @@ const styles = StyleSheet.create({
     minHeight: 30,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
   },
   eyebrow: {
     color: theme.colors.text,
@@ -347,6 +358,18 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   panelKicker: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.caption,
+    fontWeight: '900',
+  },
+  backTag: {
+    minHeight: 30,
+    borderRadius: theme.radius.pill,
+    backgroundColor: 'rgba(15, 76, 207, 0.08)',
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.md,
+  },
+  backTagText: {
     color: theme.colors.primary,
     fontSize: theme.typography.caption,
     fontWeight: '900',

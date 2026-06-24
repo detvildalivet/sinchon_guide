@@ -53,3 +53,16 @@ export type ApiUser = {
   nickname: string;
   created_at: string;
 };
+
+export type ApiVisit = {
+  id: number;
+  user_id: number;
+  place_id: number;
+  arrived_at: string;
+  left_at: string | null;
+  mood: number | null;
+  price: number | null;
+  disliked: boolean;
+  feedback_submitted: boolean;
+  created_at: string;
+};
