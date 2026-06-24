@@ -1,6 +1,7 @@
 # SQLite database
 *.db
 
+# Python Cache
 *.pyc
 *.pyo
 *.pyd
