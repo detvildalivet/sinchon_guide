@@ -2,24 +2,28 @@ import { VenueCategory } from '../types/tablemate';
 
 // Shapes returned by the FastAPI backend (camelCase, matching the TS types).
 
-export type ApiPlace = {
-  id: number;
-  slug: string | null;
+// A live venue from Google Places (via the backend proxy). Place details are
+// not stored server-side; only behavioural data (visits/queues) is.
+export type ApiNearbyPlace = {
+  googlePlaceId: string;
   name: string;
   latitude: number;
   longitude: number;
   address: string | null;
   placeType: VenueCategory;
-  meta: string | null;
-  note: string | null;
-  menu: string[];
-  distanceMinutes: number | null;
+  rating: number | null;
+};
+
+// The thin DB reference row anchoring a visit/queue to a Google place.
+export type ApiPlaceRef = {
+  id: number;
+  googlePlaceId: string;
+  name: string | null;
   revisitedRate: number;
-  createdAt: string;
 };
 
 export type ApiQueueInfo = {
-  placeId: string; // the Place.slug
+  placeId: string; // the Google place id
   exists: boolean;
   waitingCount: number;
   queueId: number | null;
@@ -28,7 +32,7 @@ export type ApiQueueInfo = {
 export type ApiQueueOut = {
   id: number;
   placeId: number;
-  placeSlug: string | null;
+  googlePlaceId: string | null;
   status: 'open' | 'closed';
   waitingCount: number;
   createdAt: string;

@@ -1,6 +1,9 @@
 # SQLite database
 *.db
 
+# Secrets / environment (Google Maps server key lives here)
+.env
+
 # Python Cache
 *.pyc
 *.pyo

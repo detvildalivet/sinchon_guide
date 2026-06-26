@@ -6,7 +6,6 @@ import {
 import { AppDialog } from './src/components/AppDialog';
 import { MainTabBar } from './src/components/MainTabBar';
 import { ScreenTransition } from './src/components/ScreenTransition';
-import { PlacePin } from './src/components/FloatingPlacePins';
 import { layoutStyles } from './src/design/layout';
 import { theme } from './src/design/theme';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
@@ -15,7 +14,7 @@ import { MainHubScreen } from './src/screens/MainHubScreen';
 import { PreferenceScreen } from './src/screens/PreferenceScreen';
 import { QueueScreen } from './src/screens/QueueScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import { HomeTab, QueueMode, VenueCategory } from './src/types/tablemate';
+import { HomeTab, PlacePin, QueueMode, VenueCategory } from './src/types/tablemate';
 
 function App() {
   return (
@@ -118,7 +117,7 @@ function AppContent() {
         <QueueScreen
           category={category}
           placeName={selectedPlace.name}
-          placeSlug={selectedPlace.id}
+          placeGoogleId={selectedPlace.id}
           mode={queueMode}
           queueId={selectedQueue.queueId}
           initialWaitingCount={selectedQueue.waitingCount}

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user, get_user_from_token
 from database import SessionLocal, get_db
 from models import Message, Place, Queue, QueueMember, User
+from routers.places import resolve_place_id
 from schemas import MessageCreate, MessageOut, QueueCreate, QueueInfo, QueueOut
 
 router = APIRouter(prefix="/queues", tags=["queues"])
@@ -59,7 +60,7 @@ def _serialize_queue(db: Session, queue: Queue) -> QueueOut:
     return QueueOut(
         id=queue.id,
         place_id=queue.place_id,
-        place_slug=queue.place.slug if queue.place else None,
+        google_place_id=queue.place.google_place_id if queue.place else None,
         status=queue.status,
         waiting_count=_waiting_count(db, queue.id),
         created_at=queue.created_at,
@@ -102,17 +103,19 @@ async def _broadcast_presence(db: Session, queue_id: int) -> None:
 
 # ---------- REST endpoints ----------
 
-@router.get("/info/{place_slug}", response_model=QueueInfo)
-def queue_info(place_slug: str, db: Session = Depends(get_db)):
-    """Mirror of the frontend getQueueInfo(placeId)."""
-    place = db.query(Place).filter(Place.slug == place_slug).first()
+@router.get("/info/{google_place_id}", response_model=QueueInfo)
+def queue_info(google_place_id: str, db: Session = Depends(get_db)):
+    """Open-queue status for a Google place id (mirror of frontend getQueueInfo)."""
+    place = (
+        db.query(Place).filter(Place.google_place_id == google_place_id).first()
+    )
     if not place:
-        return QueueInfo(place_id=place_slug, exists=False, waiting_count=0)
+        return QueueInfo(place_id=google_place_id, exists=False, waiting_count=0)
     queue = _open_queue_for_place(db, place.id)
     if not queue:
-        return QueueInfo(place_id=place_slug, exists=False, waiting_count=0)
+        return QueueInfo(place_id=google_place_id, exists=False, waiting_count=0)
     return QueueInfo(
-        place_id=place_slug,
+        place_id=google_place_id,
         exists=True,
         waiting_count=_waiting_count(db, queue.id),
         queue_id=queue.id,
@@ -126,14 +129,8 @@ def create_queue(
     user: User = Depends(get_current_user),
 ):
     """Create an open queue at a place ("큐 생성"). Creator becomes the first member."""
-    if payload.place_id is not None:
-        place = db.query(Place).filter(Place.id == payload.place_id).first()
-    elif payload.place_slug is not None:
-        place = db.query(Place).filter(Place.slug == payload.place_slug).first()
-    else:
-        raise HTTPException(status_code=422, detail="placeId or placeSlug required")
-    if not place:
-        raise HTTPException(status_code=404, detail="Place not found")
+    place_id = resolve_place_id(db, payload.google_place_id, payload.name)
+    place = db.query(Place).filter(Place.id == place_id).first()
 
     if _open_queue_for_place(db, place.id):
         raise HTTPException(
@@ -149,7 +146,8 @@ def create_queue(
     db.add(QueueMember(queue_id=queue.id, user_id=user.id))
     db.commit()
 
-    _add_system_message(db, queue.id, f"{place.name} 큐가 열렸어요. 이제 다른 사람이 조인할 수 있어요.")
+    place_label = place.name or "이곳"
+    _add_system_message(db, queue.id, f"{place_label} 큐가 열렸어요. 이제 다른 사람이 조인할 수 있어요.")
     return _serialize_queue(db, queue)
 
 

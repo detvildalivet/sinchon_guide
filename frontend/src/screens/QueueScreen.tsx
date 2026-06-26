@@ -41,7 +41,7 @@ type ChatMessage = {
 type Props = {
   category: VenueCategory;
   placeName: string;
-  placeSlug: string;
+  placeGoogleId: string;
   mode: QueueMode;
   queueId: number | null;
   initialWaitingCount: number;
@@ -51,7 +51,7 @@ type Props = {
 export function QueueScreen({
   category,
   placeName,
-  placeSlug,
+  placeGoogleId,
   mode,
   queueId,
   initialWaitingCount,
@@ -149,7 +149,7 @@ export function QueueScreen({
     setError(null);
     try {
       if (mode === 'create' || queueId === null) {
-        const queue = await createQueue(placeSlug);
+        const queue = await createQueue(placeGoogleId, placeName);
         setWaitingCount(queue.waitingCount);
         await enterChat(queue.id);
       } else {

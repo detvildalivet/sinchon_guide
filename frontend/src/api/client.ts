@@ -3,7 +3,8 @@ import { API_BASE } from './config';
 import { clearToken, getCachedToken } from './authStore';
 import {
   ApiMessage,
-  ApiPlace,
+  ApiNearbyPlace,
+  ApiPlaceRef,
   ApiQueueInfo,
   ApiQueueOut,
   ApiUser,
@@ -120,20 +121,39 @@ export function getMe(): Promise<ApiUser> {
   return apiFetch('/users/me');
 }
 
-// ---------- Places ----------
+// ---------- Places (live from Google via backend) ----------
 
-export function fetchPlaces(category: VenueCategory): Promise<ApiPlace[]> {
-  return apiFetch(`/places?place_type=${category}`, { auth: false });
+export function fetchNearbyPlaces(
+  category: VenueCategory,
+  latitude: number,
+  longitude: number,
+): Promise<ApiNearbyPlace[]> {
+  const params = new URLSearchParams({
+    lat: String(latitude),
+    lng: String(longitude),
+    type: category,
+  });
+  return apiFetch(`/places/nearby?${params.toString()}`, { auth: false });
+}
+
+// Resolve a local int place id (stored on visits) to its reference row.
+export function getPlaceRef(placeId: number): Promise<ApiPlaceRef> {
+  return apiFetch(`/places/${placeId}`, { auth: false });
 }
 
 // ---------- Queues ----------
 
-export function fetchQueueInfo(placeSlug: string): Promise<ApiQueueInfo> {
-  return apiFetch(`/queues/info/${encodeURIComponent(placeSlug)}`, { auth: false });
+export function fetchQueueInfo(googlePlaceId: string): Promise<ApiQueueInfo> {
+  return apiFetch(`/queues/info/${encodeURIComponent(googlePlaceId)}`, {
+    auth: false,
+  });
 }
 
-export function createQueue(placeSlug: string): Promise<ApiQueueOut> {
-  return apiFetch('/queues', { method: 'POST', body: { placeSlug } });
+export function createQueue(
+  googlePlaceId: string,
+  name: string,
+): Promise<ApiQueueOut> {
+  return apiFetch('/queues', { method: 'POST', body: { googlePlaceId, name } });
 }
 
 export function joinQueue(queueId: number): Promise<ApiQueueOut> {

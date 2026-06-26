@@ -48,46 +48,38 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
-# ---------- Places ----------
+# ---------- Places (live from Google; not stored) ----------
 
-class PlaceCreate(BaseModel):
-    google_place_id: Optional[str] = None
-    slug: Optional[str] = None
+class NearbyPlaceOut(BaseModel):
+    """A venue returned by Google Places Nearby Search, normalized for the app."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    google_place_id: str = Field(alias="googlePlaceId")
     name: str
     latitude: float
     longitude: float
     address: Optional[str] = None
-    place_type: PlaceType
-    meta: Optional[str] = None
-    note: Optional[str] = None
-    menu_names: list[str] = Field(default_factory=list)
-    distance_minutes: Optional[int] = None
+    place_type: PlaceType = Field(alias="placeType")
+    rating: Optional[float] = None
 
 
-class PlaceOut(BaseModel):
+class PlaceRefOut(BaseModel):
+    """The thin DB reference row that anchors visits/queues (id <-> google id)."""
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: int
-    google_place_id: Optional[str] = Field(default=None, alias="googlePlaceId")
-    slug: Optional[str]
-    name: str
-    latitude: float
-    longitude: float
-    address: Optional[str]
-    place_type: PlaceType = Field(alias="placeType")
-    meta: Optional[str]
-    note: Optional[str]
-    menu_names: list[str] = Field(alias="menu")
-    distance_minutes: Optional[int] = Field(default=None, alias="distanceMinutes")
-    revisited_rate: float = Field(alias="revisitedRate")
-    created_at: datetime = Field(alias="createdAt")
+    google_place_id: str = Field(alias="googlePlaceId")
+    name: Optional[str] = None
+    revisited_rate: float = Field(default=0.0, alias="revisitedRate")
 
 
 # ---------- Visits ----------
 
 class VisitStart(BaseModel):
-    place_id: int
+    google_place_id: str = Field(alias="googlePlaceId")
+    name: Optional[str] = None  # cached on the Place row for history display
     arrived_at: Optional[datetime] = None
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class VisitEnd(BaseModel):
@@ -119,14 +111,17 @@ class VisitOut(BaseModel):
 # ---------- Queues ----------
 
 class QueueCreate(BaseModel):
-    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
-    place_id: Optional[int] = Field(default=None, alias="placeId")
+    google_place_id: str = Field(alias="googlePlaceId")
+    name: Optional[str] = None  # cached on the Place row for system messages
     model_config = ConfigDict(populate_by_name=True)
 
 
 class QueueInfo(BaseModel):
-    """Matches frontend QueueInfo: { placeId, exists, waitingCount }."""
-    place_id: str = Field(alias="placeId")  # the Place.slug
+    """Matches frontend QueueInfo: { placeId, exists, waitingCount }.
+
+    `placeId` here is the Google place id (the public place identifier).
+    """
+    place_id: str = Field(alias="placeId")
     exists: bool
     waiting_count: int = Field(alias="waitingCount")
     queue_id: Optional[int] = Field(default=None, alias="queueId")
@@ -138,7 +133,7 @@ class QueueOut(BaseModel):
 
     id: int
     place_id: int = Field(alias="placeId")
-    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
+    google_place_id: Optional[str] = Field(default=None, alias="googlePlaceId")
     status: QueueStatus
     waiting_count: int = Field(alias="waitingCount")
     created_at: datetime = Field(alias="createdAt")

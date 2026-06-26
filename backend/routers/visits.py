@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from database import get_db
 from models import Place, User, Visit
+from routers.places import resolve_place_id
 from schemas import VisitEnd, VisitFeedback, VisitOut, VisitStart
 
 router = APIRouter(prefix="/visits", tags=["visits"])
@@ -18,16 +19,15 @@ def start_visit(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not db.query(Place).filter(Place.id == payload.place_id).first():
-        raise HTTPException(status_code=404, detail="Place not found")
+    place_id = resolve_place_id(db, payload.google_place_id, payload.name)
     visit = Visit(
         user_id=user.id,
-        place_id=payload.place_id,
+        place_id=place_id,
         arrived_at=payload.arrived_at or datetime.utcnow(),
     )
     db.add(visit)
     db.commit()
-    _update_revisited_rate(db, payload.place_id)
+    _update_revisited_rate(db, place_id)
     db.commit()
     db.refresh(visit)
     return visit

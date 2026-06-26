@@ -13,7 +13,6 @@ import { AnimatedHint } from '../components/AnimatedHint';
 import { AppButton } from '../components/AppButton';
 import { CardTransition } from '../components/CardTransition';
 import { CategorySwitcher } from '../components/CategorySwitcher';
-import { PlacePin } from '../components/FloatingPlacePins';
 import { LiveMapView } from '../components/LiveMapView';
 import { QueueStatusCard } from '../components/QueueStatusCard';
 import { mapLayoutStyles } from '../design/mapLayout';
@@ -23,12 +22,8 @@ import { useUserLocation } from '../hooks/useUserLocation';
 import { usePlaces } from '../hooks/usePlaces';
 import { fetchQueueInfo } from '../api/client';
 import { ApiQueueInfo } from '../api/types';
-import {
-  MapCoordinate,
-  offsetCoordinate,
-  regionAround,
-} from '../services/locationService';
-import { QueueMode, VenueCategory } from '../types/tablemate';
+import { regionAround } from '../services/locationService';
+import { PlacePin, QueueMode, VenueCategory } from '../types/tablemate';
 
 const categoryLabels: Record<VenueCategory, string> = {
   restaurant: '음식점',
@@ -56,16 +51,12 @@ export function PreferenceScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { center, loading } = useUserLocation();
-  const { places: placeList, loading: placesLoading } = usePlaces(category);
+  const { places: placeList, loading: placesLoading } = usePlaces(category, center);
   const [selectedPlace, setSelectedPlace] = useState<PlacePin | null>(null);
   const [displayPlace, setDisplayPlace] = useState<PlacePin | null>(null);
   const [queueInfo, setQueueInfo] = useState<ApiQueueInfo | null>(null);
   const categoryPanel = useState(() => new Animated.Value(1))[0];
   const placePanel = useState(() => new Animated.Value(0))[0];
-  const placeCoordinates = useMemo(
-    () => getPlaceCoordinates(center, placeList),
-    [placeList, center],
-  );
   const mapRegion = useMemo(() => regionAround(center, 0.014, 0.014), [center]);
 
   useEffect(() => {
@@ -144,7 +135,10 @@ export function PreferenceScreen({
             {placeList.map(place => (
               <Marker
                 key={place.id}
-                coordinate={placeCoordinates[place.id]}
+                coordinate={{
+                  latitude: place.latitude,
+                  longitude: place.longitude,
+                }}
                 title={place.name}
                 description={place.meta}
                 pinColor={
@@ -289,18 +283,6 @@ const markerColors: Record<VenueCategory, string> = {
   cafe: theme.colors.accent,
   bar: '#7C3AED',
 };
-
-function getPlaceCoordinates(
-  center: MapCoordinate,
-  placeList: PlacePin[],
-): Record<string, MapCoordinate> {
-  return placeList.reduce((acc, place) => {
-    const metersNorth = (50 - place.top) * 14;
-    const metersEast = (place.left - 50) * 14;
-    acc[place.id] = offsetCoordinate(center, metersNorth, metersEast);
-    return acc;
-  }, {} as Record<string, MapCoordinate>);
-}
 
 const styles = StyleSheet.create({
   loading: {

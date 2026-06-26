@@ -38,25 +38,19 @@ class User(Base):
 
 
 class Place(Base):
+    """A thin reference to a Google place.
+
+    Place *details* (address, coords, menu, rating) are fetched live from Google
+    and are NOT stored here. This row exists only to give Visit/Queue a stable
+    integer FK target keyed off the Google place id. `name` is cached for display
+    in visit history and queue system messages.
+    """
     __tablename__ = "places"
 
     id = Column(Integer, primary_key=True, index=True)
-    google_place_id = Column(String, unique=True, nullable=True, index=True)
-    slug = Column(String, unique=True, nullable=True, index=True)  # frontend id e.g. "r1"
-    name = Column(String, nullable=False)
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
-    address = Column(String, nullable=True)
-    place_type = Column(
-        Enum("restaurant", "cafe", "bar", name="place_type_enum"),
-        nullable=False,
-        index=True,
-    )
-    # Frontend display fields rendered verbatim (e.g. "한식 · 6분").
-    meta = Column(String, nullable=True)
-    note = Column(String, nullable=True)
-    menu_names = Column(JSON, default=list, nullable=False)  # PlacePin.menu: string[]
-    distance_minutes = Column(Integer, nullable=True)
+    google_place_id = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String, nullable=True)
+    # Share of distinct visitors who came back (>=2 visits). Behavioural metric.
     revisited_rate = Column(Float, default=0.0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

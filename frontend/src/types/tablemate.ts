@@ -12,6 +12,18 @@ export type QueueInfo = {
   waitingCount: number;
 };
 
+/** A place candidate shown on the map, sourced live from Google Places.
+ *  `id` is the Google place id — the identifier used for queues/visits. */
+export type PlacePin = {
+  id: string;
+  name: string;
+  meta: string;
+  note: string;
+  menu: string[];
+  latitude: number;
+  longitude: number;
+};
+
 export type SoloMenuRecommendation = {
   id: string;
   menuName: string;

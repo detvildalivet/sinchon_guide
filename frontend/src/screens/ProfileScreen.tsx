@@ -11,9 +11,8 @@ import { FadeModal } from '../components/FadeModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { theme } from '../design/theme';
-import { getMyVisits, fetchPlaces } from '../api/client';
-import { ApiVisit } from '../api/types';
-import { VenueCategory } from '../types/tablemate';
+import { getMyVisits, getPlaceRef } from '../api/client';
+import { ApiPlaceRef, ApiVisit } from '../api/types';
 
 type Props = {
   onBackPress: () => void;
@@ -28,7 +27,7 @@ export function ProfileScreen({ onBackPress }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const [visits, setVisits] = useState<ApiVisit[]>([]);
   const [visitsLoading, setVisitsLoading] = useState(false);
-  const [visitPlaces, setVisitPlaces] = useState<Record<number, any>>({});
+  const [visitPlaces, setVisitPlaces] = useState<Record<number, ApiPlaceRef>>({});
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = async () => {
@@ -40,21 +39,19 @@ export function ProfileScreen({ onBackPress }: Props) {
     try {
       const myVisits = await getMyVisits();
       setVisits(myVisits);
-      
-      // 모든 카테고리에서 장소 정보 가져오기
-      const categories: VenueCategory[] = ['restaurant', 'cafe', 'bar'];
-      const placesMap: Record<number, any> = {};
-      
-      for (const category of categories) {
-        try {
-          const places = await fetchPlaces(category);
-          places.forEach(place => {
-            placesMap[place.id] = place;
-          });
-        } catch (e) {
-          // 오류 무시
-        }
-      }
+
+      // Resolve each visited place's reference row (id -> cached name) for display.
+      const uniqueIds = Array.from(new Set(myVisits.map(v => v.place_id)));
+      const placesMap: Record<number, ApiPlaceRef> = {};
+      await Promise.all(
+        uniqueIds.map(async id => {
+          try {
+            placesMap[id] = await getPlaceRef(id);
+          } catch (e) {
+            // 오류 무시
+          }
+        }),
+      );
       setVisitPlaces(placesMap);
     } catch (error) {
       console.error('Failed to load visits:', error);
@@ -343,13 +340,7 @@ export function ProfileScreen({ onBackPress }: Props) {
                         </View>
                       )}
                     </View>
-                    <Text style={styles.historyIcon}>
-                      {place?.placeType === 'restaurant'
-                        ? '🍽️'
-                        : place?.placeType === 'cafe'
-                        ? '☕'
-                        : '🍺'}
-                    </Text>
+                    <Text style={styles.historyIcon}>📍</Text>
                   </View>
                 );
               })}

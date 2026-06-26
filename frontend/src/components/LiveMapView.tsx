@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { MapViewProps, UrlTile } from 'react-native-maps';
+import { StyleSheet, View } from 'react-native';
+import MapView, { MapViewProps, PROVIDER_GOOGLE } from 'react-native-maps';
 import { MapRegion } from '../services/locationService';
 
 type Props = PropsWithChildren<{
@@ -22,9 +22,10 @@ export function LiveMapView({
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <MapView
+        provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={region}
-        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+        mapType="standard"
         showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
@@ -43,14 +44,6 @@ export function LiveMapView({
             : undefined
         }
         {...mapProps}>
-        {Platform.OS === 'android' ? (
-          <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maximumZ={19}
-            flipY={false}
-            shouldReplaceMapContent
-          />
-        ) : null}
         {children}
       </MapView>
       <View

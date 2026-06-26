@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { fetchPlaces } from '../api/client';
-import { PlacePin } from '../components/FloatingPlacePins';
-import { DEFAULT_PIN_LAYOUT, placeLayout } from '../design/placeLayout';
-import { VenueCategory } from '../types/tablemate';
+import { fetchNearbyPlaces } from '../api/client';
+import { ApiNearbyPlace } from '../api/types';
+import { MapCoordinate } from '../services/locationService';
+import { PlacePin, VenueCategory } from '../types/tablemate';
 
 type State = {
   places: PlacePin[];
@@ -10,36 +10,50 @@ type State = {
   error: string | null;
 };
 
-export function usePlaces(category: VenueCategory): State {
+const categoryLabels: Record<VenueCategory, string> = {
+  restaurant: '음식점',
+  cafe: '카페',
+  bar: '술집',
+};
+
+function toPin(p: ApiNearbyPlace): PlacePin {
+  const ratingLabel = p.rating != null ? `${p.rating.toFixed(1)}★` : null;
+  const meta = [ratingLabel, categoryLabels[p.placeType]]
+    .filter(Boolean)
+    .join(' · ');
+  return {
+    id: p.googlePlaceId,
+    name: p.name,
+    meta,
+    note: p.address ?? '',
+    menu: [],
+    latitude: p.latitude,
+    longitude: p.longitude,
+  };
+}
+
+export function usePlaces(
+  category: VenueCategory,
+  center: MapCoordinate,
+): State {
   const [state, setState] = useState<State>({
     places: [],
     loading: true,
     error: null,
   });
 
+  const { latitude, longitude } = center;
+
   useEffect(() => {
     let active = true;
     setState({ places: [], loading: true, error: null });
 
-    fetchPlaces(category)
+    fetchNearbyPlaces(category, latitude, longitude)
       .then(apiPlaces => {
         if (!active) {
           return;
         }
-        const places: PlacePin[] = apiPlaces.map(p => {
-          const slug = p.slug ?? String(p.id);
-          const layout = placeLayout[slug] ?? DEFAULT_PIN_LAYOUT;
-          return {
-            id: slug,
-            name: p.name,
-            meta: p.meta ?? '',
-            note: p.note ?? '',
-            menu: p.menu ?? [],
-            top: layout.top,
-            left: layout.left,
-          };
-        });
-        setState({ places, loading: false, error: null });
+        setState({ places: apiPlaces.map(toPin), loading: false, error: null });
       })
       .catch(e => {
         if (active) {
@@ -54,7 +68,7 @@ export function usePlaces(category: VenueCategory): State {
     return () => {
       active = false;
     };
-  }, [category]);
+  }, [category, latitude, longitude]);
 
   return state;
 }
