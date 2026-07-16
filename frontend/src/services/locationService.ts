@@ -1,5 +1,4 @@
-import { PermissionsAndroid, Platform } from 'react-native';
-import Geolocation from '@react-native-community/geolocation';
+import * as Location from 'expo-location';
 
 export type MapCoordinate = {
   latitude: number;
@@ -27,55 +26,26 @@ export type LocationResult =
   | { status: 'granted'; coordinate: MapCoordinate }
   | { status: 'denied'; coordinate: MapCoordinate };
 
-export function requestCurrentLocation(): Promise<LocationResult> {
-  return new Promise(resolve => {
-    const finish = (result: LocationResult) => resolve(result);
-
-    const readPosition = () => {
-      Geolocation.getCurrentPosition(
-        position => {
-          finish({
-            status: 'granted',
-            coordinate: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            },
-          });
-        },
-        () => {
-          finish({
-            status: 'denied',
-            coordinate: DEFAULT_COORDINATE,
-          });
-        },
-        {
-          enableHighAccuracy: Platform.OS === 'ios',
-          timeout: 15000,
-          maximumAge: 10000,
-        },
-      );
-    };
-
-    if (Platform.OS === 'ios') {
-      Geolocation.requestAuthorization?.();
-      readPosition();
-      return;
+export async function requestCurrentLocation(): Promise<LocationResult> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      return { status: 'denied', coordinate: DEFAULT_COORDINATE };
     }
 
-    PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-    ).then(result => {
-      if (result === PermissionsAndroid.RESULTS.GRANTED) {
-        readPosition();
-        return;
-      }
-
-      finish({
-        status: 'denied',
-        coordinate: DEFAULT_COORDINATE,
-      });
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
     });
-  });
+    return {
+      status: 'granted',
+      coordinate: {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      },
+    };
+  } catch {
+    return { status: 'denied', coordinate: DEFAULT_COORDINATE };
+  }
 }
 
 export function offsetCoordinate(

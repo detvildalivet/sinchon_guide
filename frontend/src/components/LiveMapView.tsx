@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { MapViewProps, PROVIDER_GOOGLE } from 'react-native-maps';
 import { MapRegion } from '../services/locationService';
 
@@ -21,8 +21,9 @@ export function LiveMapView({
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
+      {/* Expo Go on iOS does not bundle the Google Maps SDK — Apple Maps there. */}
       <MapView
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         style={styles.map}
         initialRegion={region}
         mapType="standard"

@@ -1,4 +1,24 @@
 {
-  "name": "tablemate",
-  "displayName": "tablemate"
+  "expo": {
+    "name": "tablemate",
+    "slug": "tablemate",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.tablemate",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.tablemate"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "주변 음식점·카페·술집을 찾기 위해 현재 위치를 사용합니다."
+        }
+      ]
+    ]
+  }
 }
