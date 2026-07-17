@@ -97,7 +97,7 @@ export function MapBackdrop({
 
 const styles = StyleSheet.create({
   mapLayer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   mapLayerTogether: {
     backgroundColor: '#C5D8F2',
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B2F73',
   },
   mapVeil: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   veilTogether: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',

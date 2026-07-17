@@ -57,13 +57,13 @@ export function LiveMapView({
 
 const styles = StyleSheet.create({
   wrap: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   map: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   veil: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   veilTogether: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',

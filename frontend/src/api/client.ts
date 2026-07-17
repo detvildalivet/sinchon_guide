@@ -1,4 +1,4 @@
-import { VenueCategory, SoloMenuRecommendation } from '../types/tablemate';
+import { VenueCategory, SoloMenuRecommendation } from '../types/sinchonGuide';
 import { API_BASE } from './config';
 import { clearToken, getCachedToken } from './authStore';
 import {

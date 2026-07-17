@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "tablemate",
-    "slug": "tablemate",
+    "name": "Sinchon Guide",
+    "slug": "sinchon-guide",
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.tablemate",
+      "bundleIdentifier": "com.sinchonguide",
       "supportsTablet": false
     },
     "android": {
-      "package": "com.tablemate"
+      "package": "com.sinchonguide"
     },
     "plugins": [
       [

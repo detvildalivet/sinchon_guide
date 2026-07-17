@@ -15,8 +15,8 @@ On your project, enable:
 
 Then create API keys. Recommended: **two restricted keys** —
 
-- **Client key** for the apps. Restrict by app: Android (package `com.tablemate`
-  + your debug/release SHA-1) and iOS (bundle id `com.tablemate`). You can use one
+- **Client key** for the apps. Restrict by app: Android (package `com.sinchonguide`
+  + your debug/release SHA-1) and iOS (bundle id `com.sinchonguide`). You can use one
   key for both platforms or split them.
 - **Server key** for the backend. Restrict by API (Places + Geocoding) and, ideally,
   by your server IP. Never ship this key in the app.

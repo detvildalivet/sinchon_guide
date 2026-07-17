@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../design/theme';
-import { QueueMode } from '../types/tablemate';
+import { QueueMode } from '../types/sinchonGuide';
 
 type Props = {
   mode: QueueMode;

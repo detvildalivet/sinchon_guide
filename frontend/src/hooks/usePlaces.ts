@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchNearbyPlaces } from '../api/client';
 import { ApiNearbyPlace } from '../api/types';
 import { MapCoordinate } from '../services/locationService';
-import { PlacePin, VenueCategory } from '../types/tablemate';
+import { PlacePin, VenueCategory } from '../types/sinchonGuide';
 
 type State = {
   places: PlacePin[];
@@ -16,7 +16,7 @@ const categoryLabels: Record<VenueCategory, string> = {
   bar: '술집',
 };
 
-function toPin(p: ApiNearbyPlace): PlacePin {
+export function toPin(p: ApiNearbyPlace): PlacePin {
   const ratingLabel = p.rating != null ? `${p.rating.toFixed(1)}★` : null;
   const meta = [ratingLabel, categoryLabels[p.placeType]]
     .filter(Boolean)

@@ -26,40 +26,40 @@ export const mapLayoutStyles = StyleSheet.create({
     backgroundColor: MAP_BASE_COLOR,
   },
   mapStage: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     ...MAP_LAYER.map,
   },
   pinOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     ...MAP_LAYER.pins,
     backgroundColor: 'transparent',
     pointerEvents: 'box-none',
   },
   mapBackground: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     ...MAP_LAYER.map,
   },
   mapViewport: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     ...MAP_LAYER.map,
     overflow: 'hidden',
   },
   mapCanvas: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   mapContent: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     ...MAP_LAYER.pins,
     backgroundColor: 'transparent',
     pointerEvents: 'box-none',
   },
   pinLayer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     ...MAP_LAYER.pins,
     backgroundColor: 'transparent',
   },
   uiOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     zIndex: 10,
     elevation: 0,
     backgroundColor: 'transparent',
@@ -72,7 +72,7 @@ export const mapLayoutStyles = StyleSheet.create({
     ...MAP_LAYER.prompt,
   },
   overlayLayer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     zIndex: 10,
     elevation: 0,
     backgroundColor: 'transparent',

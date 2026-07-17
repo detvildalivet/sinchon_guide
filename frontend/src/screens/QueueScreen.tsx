@@ -24,7 +24,7 @@ import {
   postMessage,
 } from '../api/client';
 import { ApiMessage } from '../api/types';
-import { QueueMode, VenueCategory } from '../types/tablemate';
+import { QueueMode, VenueCategory } from '../types/sinchonGuide';
 
 const categoryLabels: Record<VenueCategory, string> = {
   restaurant: '음식점',
@@ -316,6 +316,9 @@ export function QueueScreen({
 }
 
 const styles = StyleSheet.create({
+  pressed: {
+    opacity: 0.8,
+  },
   promptPanel: {
     backgroundColor: 'rgba(255, 255, 255, 0.88)',
     borderColor: 'rgba(255, 255, 255, 0.96)',

@@ -15,7 +15,7 @@ Work branch: **`UsingGoogleMap`**.
 
 ## Phase C — Frontend data wiring
 - `usePlaces(category, center)` calls `/places/nearby` and returns **real** coordinates; `PreferenceScreen` markers now sit at actual venue locations (deleted the fake-offset `getPlaceCoordinates`).
-- `PlacePin` moved to `types/tablemate.ts` with `latitude/longitude/googlePlaceId`; queue/visit calls send `googlePlaceId` + name; `ProfileScreen` resolves visit history via `getPlaceRef`.
+- `PlacePin` moved to `types/sinchonGuide.ts` with `latitude/longitude/googlePlaceId`; queue/visit calls send `googlePlaceId` + name; `ProfileScreen` resolves visit history via `getPlaceRef`.
 - Deleted dead files: `FloatingPlacePins.tsx`, `design/placeLayout.ts`, `design/mapCoordinates.ts`.
 
 ## Phase D — Secrets

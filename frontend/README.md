@@ -1,6 +1,8 @@
-# TableMate frontend (Expo)
+# Sinchon Guide frontend (Expo)
 
-React Native app managed by [Expo](https://expo.dev) (SDK 57). Runs in **Expo Go** — no native builds, no API keys on the client.
+React Native app managed by [Expo](https://expo.dev) (SDK 54). Runs in **Expo Go** — no native builds, no API keys on the client.
+
+> The project's SDK version must match your Expo Go app's SDK version (shown in Expo Go's profile tab) or the app will fail to load. If you update Expo Go from the App/Play Store and it moves to a newer SDK, run `npx expo install expo@<new-major>` here and re-align dependencies with `npx expo install --fix`.
 
 > Maps: Android renders Google Maps (Expo Go's bundled SDK). iOS in Expo Go renders **Apple Maps** — Google Maps on iOS would require an EAS development build.
 

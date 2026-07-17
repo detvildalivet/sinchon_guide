@@ -1,4 +1,4 @@
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/sinchonGuide';
 
 // Shapes returned by the FastAPI backend (camelCase, matching the TS types).
 

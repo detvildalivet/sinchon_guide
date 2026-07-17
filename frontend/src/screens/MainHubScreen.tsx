@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -13,19 +14,28 @@ import { AppButton } from '../components/AppButton';
 import { AppDialog } from '../components/AppDialog';
 import { CardTransition } from '../components/CardTransition';
 import { MapStage } from '../components/MapStage';
+import { fetchQueueInfo } from '../api/client';
 import { TAB_BAR_CLEARANCE, mapLayoutStyles } from '../design/mapLayout';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
+import { usePlaceRecommendation } from '../hooks/usePlaceRecommendation';
 import { useSoloRecommendations } from '../hooks/useSoloRecommendations';
-import { HomeTab, SoloMenuRecommendation, VenueCategory } from '../types/tablemate';
+import { useUserLocation } from '../hooks/useUserLocation';
+import { regionAround } from '../services/locationService';
+import { HomeTab, PlacePin, SoloMenuRecommendation, VenueCategory } from '../types/sinchonGuide';
 
 type Props = {
   activeTab: HomeTab;
-  onSelectCategory: (category: VenueCategory) => void;
   onProfilePress: () => void;
+  onRecommendConfirm: (
+    place: PlacePin,
+    category: VenueCategory,
+    queueId: number | null,
+    waitingCount: number,
+  ) => void;
 };
 
-export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: Props) {
+export function MainHubScreen({ activeTab, onProfilePress, onRecommendConfirm }: Props) {
   const insets = useSafeAreaInsets();
   const isSolo = activeTab === 'solo';
   const modeAnim = useRef(new Animated.Value(isSolo ? 1 : 0)).current;
@@ -38,7 +48,16 @@ export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: P
     null,
   );
   const [confirmed, setConfirmed] = useState(false);
+  const [queueLoading, setQueueLoading] = useState(false);
   const { menus, loading: menusLoading } = useSoloRecommendations();
+  const { region, center, loading: locationLoading } = useUserLocation();
+  const {
+    place: recommendedPlace,
+    loading: recommendLoading,
+    error: recommendError,
+    recommend,
+    reroll,
+  } = usePlaceRecommendation();
   const visibleMenus = useMemo(() => {
     if (menus.length === 0) {
       return [] as SoloMenuRecommendation[];
@@ -63,6 +82,52 @@ export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: P
 
     setMenuIndex(nextIndex);
     setSelectedMenu(menus[nextIndex]);
+  };
+
+  const focusRegion = useMemo(() => {
+    if (!recommendedPlace) {
+      return null;
+    }
+    return regionAround(
+      { latitude: recommendedPlace.latitude, longitude: recommendedPlace.longitude },
+      0.01,
+      0.01,
+    );
+  }, [recommendedPlace]);
+
+  const handleRecommend = () => {
+    if (recommendLoading) {
+      return;
+    }
+    recommend(center);
+  };
+
+  const handleDirections = () => {
+    if (!recommendedPlace) {
+      return;
+    }
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${recommendedPlace.latitude},${recommendedPlace.longitude}&destination_place_id=${recommendedPlace.id}`;
+    Linking.openURL(url).catch(() => {});
+  };
+
+  const handleGoHere = async () => {
+    if (!recommendedPlace || queueLoading) {
+      return;
+    }
+    setQueueLoading(true);
+    try {
+      const info = await fetchQueueInfo(recommendedPlace.id);
+      onRecommendConfirm(
+        recommendedPlace,
+        recommendedPlace.category,
+        info.queueId,
+        info.waitingCount,
+      );
+    } catch {
+      onRecommendConfirm(recommendedPlace, recommendedPlace.category, null, 0);
+    } finally {
+      setQueueLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -124,8 +189,8 @@ export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: P
   });
 
   return (
-    <View style={[mapLayoutStyles.screenRoot, shellStyles.screen, { paddingTop: insets.top }]}> 
-      <View style={[styles.headerWrapper, { top: insets.top + theme.spacing.xs }]}> 
+    <View style={[mapLayoutStyles.screenRoot, shellStyles.screen, { paddingTop: insets.top }]}>
+      <View style={[styles.headerWrapper, { top: insets.top + theme.spacing.xs }]}>
         <Animated.View
           pointerEvents="auto"
           style={[
@@ -144,20 +209,20 @@ export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: P
                 color: kickerColor,
               },
             ]}>
-            TableMate
+            Sinchon Guide
           </Animated.Text>
           <Animated.Text
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.82}
-            style={[shellStyles.panelTitle, styles.panelTitle, { color: titleColor }]}> 
+            style={[shellStyles.panelTitle, styles.panelTitle, { color: titleColor }]}>
             {isSolo ? '혼자 먹기 좋은 메뉴' : '같이 먹을 곳을 골라볼까요?'}
           </Animated.Text>
           <Animated.Text
-            style={[shellStyles.panelDescription, { color: descriptionColor }]}> 
+            style={[shellStyles.panelDescription, { color: descriptionColor }]}>
             {isSolo
-              ? '시간대와 거리, 혼밥 적합도로 추천해요. 핀을 눌러 메뉴를 확인하세요.'
-              : '지도 위 핀을 눌러 장소를 고르고, 밥친구 큐에 참여해요.'}
+              ? '시간대와 거리, 혼밥 적합도로 추천해요. 다른 메뉴 버튼으로 바꿔보세요.'
+              : '추천 받기를 누르면 오늘 갈 곳 하나를 골라드려요.'}
           </Animated.Text>
           <AnimatedHint
             text={
@@ -184,7 +249,10 @@ export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: P
 
       <MapStage
         solo={isSolo}
-        onSelectCategory={onSelectCategory}
+        loading={locationLoading}
+        region={region}
+        recommendedPlace={!isSolo ? recommendedPlace : null}
+        focusRegion={!isSolo ? focusRegion : null}
       />
 
       {isSolo && menusLoading ? (
@@ -193,60 +261,122 @@ export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: P
         </View>
       ) : null}
 
-      <Animated.View
-        pointerEvents={selectedMenu ? 'auto' : 'none'}
-        style={[
-          shellStyles.bottomPanel,
-          styles.menuPanel,
-          {
-            bottom: insets.bottom + TAB_BAR_CLEARANCE,
-            paddingBottom: theme.spacing.sm,
-            opacity: menuPanel,
-            transform: [
-              {
-                translateY: menuPanel.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [46, 0],
-                }),
-              },
-            ],
-          },
-        ]}>
-        {displayMenu ? (
-          <CardTransition transitionKey={displayMenu.id}>
+      {isSolo ? (
+        <Animated.View
+          pointerEvents={selectedMenu ? 'auto' : 'none'}
+          style={[
+            shellStyles.bottomPanel,
+            styles.menuPanel,
+            {
+              bottom: insets.bottom + TAB_BAR_CLEARANCE,
+              paddingBottom: theme.spacing.sm,
+              opacity: menuPanel,
+              transform: [
+                {
+                  translateY: menuPanel.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [46, 0],
+                  }),
+                },
+              ],
+            },
+          ]}>
+          {displayMenu ? (
+            <CardTransition transitionKey={displayMenu.id}>
+              <View style={styles.menuPanelContent}>
+                <View style={styles.previewHeader}>
+                  <Text style={styles.previewKicker}>추천 메뉴</Text>
+                  <Text style={styles.previewMeta}>{displayMenu.score}점</Text>
+                </View>
+                <Text style={styles.previewName}>{displayMenu.menuName}</Text>
+                <Text style={styles.previewVenue}>{displayMenu.venueName}</Text>
+                <Text style={styles.previewNote}>{displayMenu.reason}</Text>
+                <View style={styles.menuRow}>
+                  {displayMenu.tags.map(tag => (
+                    <View key={tag} style={styles.menuChip}>
+                      <Text style={styles.menuText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.actionRow}>
+                  <AppButton
+                    label="다른 메뉴"
+                    onPress={showNextMenu}
+                    variant="secondary"
+                    style={styles.secondaryAction}
+                  />
+                  <AppButton
+                    label="이 메뉴로 할게요"
+                    onPress={() => setConfirmed(true)}
+                    variant="accent"
+                    style={styles.primaryAction}
+                  />
+                </View>
+              </View>
+            </CardTransition>
+          ) : null}
+        </Animated.View>
+      ) : null}
+
+      {!isSolo && !recommendedPlace ? (
+        <View
+          style={[styles.recommendCta, { bottom: insets.bottom + TAB_BAR_CLEARANCE }]}
+          pointerEvents="box-none">
+          <AppButton
+            label={recommendLoading ? '추천 중...' : '추천 받기'}
+            onPress={handleRecommend}
+            variant="accent"
+          />
+          {recommendError ? (
+            <Text style={styles.recommendError}>{recommendError}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {!isSolo && recommendedPlace ? (
+        <View
+          style={[
+            shellStyles.bottomPanel,
+            styles.menuPanel,
+            {
+              bottom: insets.bottom + TAB_BAR_CLEARANCE,
+              paddingBottom: theme.spacing.sm,
+            },
+          ]}>
+          <CardTransition transitionKey={recommendedPlace.id}>
             <View style={styles.menuPanelContent}>
               <View style={styles.previewHeader}>
-                <Text style={styles.previewKicker}>추천 메뉴</Text>
-                <Text style={styles.previewMeta}>{displayMenu.score}점</Text>
+                <Text style={styles.previewKicker}>추천 장소</Text>
+                <Text style={styles.previewMeta}>{recommendedPlace.meta}</Text>
               </View>
-              <Text style={styles.previewName}>{displayMenu.menuName}</Text>
-              <Text style={styles.previewVenue}>{displayMenu.venueName}</Text>
-              <Text style={styles.previewNote}>{displayMenu.reason}</Text>
-              <View style={styles.menuRow}>
-                {displayMenu.tags.map(tag => (
-                  <View key={tag} style={styles.menuChip}>
-                    <Text style={styles.menuText}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={styles.previewName}>{recommendedPlace.name}</Text>
+              {recommendedPlace.note ? (
+                <Text style={styles.previewNote}>{recommendedPlace.note}</Text>
+              ) : null}
               <View style={styles.actionRow}>
                 <AppButton
-                  label="다른 메뉴"
-                  onPress={showNextMenu}
+                  label="다른 곳 추천"
+                  onPress={reroll}
                   variant="secondary"
                   style={styles.secondaryAction}
                 />
                 <AppButton
-                  label="이 메뉴로 할게요"
-                  onPress={() => setConfirmed(true)}
-                  variant="accent"
-                  style={styles.primaryAction}
+                  label="길 안내"
+                  onPress={handleDirections}
+                  variant="secondary"
+                  style={styles.secondaryAction}
                 />
               </View>
+              <AppButton
+                label={queueLoading ? '이동 중...' : '여기로 갈래요'}
+                onPress={handleGoHere}
+                variant="accent"
+                style={styles.primaryActionFull}
+              />
             </View>
           </CardTransition>
-        ) : null}
-      </Animated.View>
+        </View>
+      ) : null}
 
       <AppDialog
         visible={confirmed && currentMenu !== null}
@@ -355,8 +485,23 @@ const styles = StyleSheet.create({
   primaryAction: {
     flex: 1.25,
   },
+  primaryActionFull: {
+    marginTop: theme.spacing.sm,
+  },
   secondaryAction: {
     flex: 1,
+  },
+  recommendCta: {
+    position: 'absolute',
+    left: theme.spacing.lg,
+    right: theme.spacing.lg,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  recommendError: {
+    color: theme.colors.danger,
+    fontSize: theme.typography.caption,
+    fontWeight: '700',
   },
   profileButton: {
     width: 50,

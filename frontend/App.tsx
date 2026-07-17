@@ -3,7 +3,6 @@ import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import {
   SafeAreaProvider,
 } from 'react-native-safe-area-context';
-import { AppDialog } from './src/components/AppDialog';
 import { MainTabBar } from './src/components/MainTabBar';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { layoutStyles } from './src/design/layout';
@@ -14,7 +13,7 @@ import { MainHubScreen } from './src/screens/MainHubScreen';
 import { PreferenceScreen } from './src/screens/PreferenceScreen';
 import { QueueScreen } from './src/screens/QueueScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import { HomeTab, PlacePin, QueueMode, VenueCategory } from './src/types/tablemate';
+import { HomeTab, PlacePin, QueueMode, VenueCategory } from './src/types/sinchonGuide';
 
 function App() {
   return (
@@ -51,7 +50,6 @@ type SelectedQueue = {
 };
 
 function AppContent() {
-  const { user, logout } = useAuth();
   const [route, setRoute] = useState<'home' | 'preference' | 'queue' | 'profile'>('home');
   const [homeTab, setHomeTab] = useState<HomeTab>('together');
   const [category, setCategory] = useState<VenueCategory | null>(null);
@@ -61,17 +59,11 @@ function AppContent() {
     queueId: null,
     waitingCount: 0,
   });
-  const [dialog, setDialog] = useState<'profile' | 'map' | null>(null);
 
   const goHome = () => {
     setRoute('home');
     setCategory(null);
     setSelectedPlace(null);
-  };
-
-  const selectCategory = (nextCategory: VenueCategory) => {
-    setCategory(nextCategory);
-    setRoute('preference');
   };
 
   const openQueue = (
@@ -86,13 +78,23 @@ function AppContent() {
     setRoute('queue');
   };
 
+  const handleRecommendConfirm = (
+    place: PlacePin,
+    recommendedCategory: VenueCategory,
+    queueId: number | null,
+    waitingCount: number,
+  ) => {
+    setCategory(recommendedCategory);
+    openQueue(place, queueId ? 'join' : 'create', queueId, waitingCount);
+  };
+
   const renderScreen = () => {
     if (route === 'home' && category === null) {
       return (
         <MainHubScreen
           activeTab={homeTab}
-          onSelectCategory={selectCategory}
           onProfilePress={() => setRoute('profile')}
+          onRecommendConfirm={handleRecommendConfirm}
         />
       );
     }
@@ -139,26 +141,6 @@ function AppContent() {
       {showMainTabBar ? (
         <MainTabBar active={homeTab} onChange={setHomeTab} />
       ) : null}
-      <AppDialog
-        visible={dialog === 'profile'}
-        title="프로필"
-        message={`${user?.nickname ?? '게스트'} · 선호 거리 1km · 알레르기 미설정`}
-        confirmLabel="로그아웃"
-        cancelLabel="닫기"
-        onConfirm={() => {
-          setDialog(null);
-          logout();
-        }}
-        onCancel={() => setDialog(null)}
-      />
-      <AppDialog
-        visible={dialog === 'map'}
-        title="지도"
-        message="주변 후보 6곳 · 음식점 2 · 카페 2 · 술집 2"
-        confirmLabel="확인"
-        onConfirm={() => setDialog(null)}
-        onCancel={() => setDialog(null)}
-      />
     </View>
   );
 }

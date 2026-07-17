@@ -23,7 +23,7 @@ import { usePlaces } from '../hooks/usePlaces';
 import { fetchQueueInfo } from '../api/client';
 import { ApiQueueInfo } from '../api/types';
 import { regionAround } from '../services/locationService';
-import { PlacePin, QueueMode, VenueCategory } from '../types/tablemate';
+import { PlacePin, QueueMode, VenueCategory } from '../types/sinchonGuide';
 
 const categoryLabels: Record<VenueCategory, string> = {
   restaurant: '음식점',

@@ -60,10 +60,6 @@ export function ProfileScreen({ onBackPress }: Props) {
     }
   };
 
-  const handleOpenLink = (url: string) => {
-    // TODO: 링크 오픈 구현
-  };
-
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -97,25 +93,6 @@ export function ProfileScreen({ onBackPress }: Props) {
           <Text style={styles.nickname}>{user?.nickname || 'User'}</Text>
           <Text style={styles.email}>{user?.email}</Text>
         </View>
-      </View>
-
-      {/* 설정 섹션 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>설정</Text>
-        <TouchableFade
-          style={({ pressed }) => [
-            styles.menuCard,
-            pressed && styles.menuCardPressed,
-          ]}
-          onPress={() => {}} // TODO: 설정 화면
-        >
-          <Text style={styles.menuIcon}>⚙️</Text>
-          <View style={styles.menuContent}>
-            <Text style={styles.menuTitle}>설정</Text>
-            <Text style={styles.menuSubtitle}>앱 설정 및 환경설정</Text>
-          </View>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableFade>
       </View>
 
       {/* 히스토리 섹션 */}
@@ -263,7 +240,7 @@ export function ProfileScreen({ onBackPress }: Props) {
 
 7. 연락처
 
-정보 보호에 관한 문의: contact@tablemate.com`}
+정보 보호에 관한 문의: contact@sinchonguide.com`}
               </Text>
             )}
           </ScrollView>
@@ -726,14 +703,5 @@ const styles = StyleSheet.create({
     color: theme.colors.textOnPrimary,
     fontSize: theme.typography.body,
     fontWeight: '700',
-  },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xl,
   },
 });

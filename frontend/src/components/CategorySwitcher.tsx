@@ -8,7 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { theme } from '../design/theme';
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/sinchonGuide';
 
 const categories: Array<{ id: VenueCategory; label: string }> = [
   { id: 'restaurant', label: '음식점' },
