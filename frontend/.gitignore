@@ -76,4 +76,3 @@ yarn-error.log
 
 # Private files
 .env
-ios/Secrets.xcconfig

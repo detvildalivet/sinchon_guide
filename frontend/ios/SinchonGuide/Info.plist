@@ -8,8 +8,6 @@
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>Sinchon Guide</string>
-	<key>GMSApiKey</key>
-	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

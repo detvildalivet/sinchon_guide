@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { MapViewProps, PROVIDER_GOOGLE } from 'react-native-maps';
 import { MapRegion } from '../services/locationService';
 
@@ -23,7 +23,7 @@ export function LiveMapView({
     <View style={styles.wrap} pointerEvents="box-none">
       <MapView
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={region}
         mapType="standard"
         showsUserLocation
