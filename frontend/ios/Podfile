@@ -23,6 +23,10 @@ target 'tablemate' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # Google Maps SDK backing for react-native-maps (PROVIDER_GOOGLE on iOS)
+  rn_maps_path = '../node_modules/react-native-maps'
+  pod 'react-native-google-maps', :path => rn_maps_path
+
   post_install do |installer|
     react_native_post_install(
       installer,
