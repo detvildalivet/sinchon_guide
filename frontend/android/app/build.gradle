@@ -94,6 +94,16 @@ android {
             GOOGLE_MAPS_API_KEY: envProps.getProperty('map_api_key_android', '')
         ]
     }
+    // Windows hits MAX_PATH (260 chars) compiling New Architecture codegen C++
+    // sources, since CMake mirrors each source's full absolute path under the
+    // build dir. Staging outside the (long, space-containing) project path
+    // trims the prefix; the deep node_modules source path itself still needs
+    // long-path support enabled (or a shorter project path) to fully clear it.
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory "${System.getProperty('java.io.tmpdir')}/rncxx/sinchonguide"
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
