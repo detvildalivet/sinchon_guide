@@ -1,4 +1,4 @@
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/domain';
 
 /** Mock venue offsets from the user's current location (meters). */
 export const venueOffsets: Record<

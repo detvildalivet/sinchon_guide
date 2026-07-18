@@ -1,4 +1,4 @@
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/domain';
 
 export type MapLayoutSize = {
   width: number;

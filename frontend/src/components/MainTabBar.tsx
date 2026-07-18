@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../design/theme';
-import { HomeTab } from '../types/tablemate';
+import { HomeTab } from '../types/domain';
 
 type Props = {
   active: HomeTab;

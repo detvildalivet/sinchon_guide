@@ -28,7 +28,7 @@ import {
   offsetCoordinate,
   regionAround,
 } from '../services/locationService';
-import { QueueMode, VenueCategory } from '../types/tablemate';
+import { QueueMode, VenueCategory } from '../types/domain';
 
 const categoryLabels: Record<VenueCategory, string> = {
   restaurant: '음식점',

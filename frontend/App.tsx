@@ -15,7 +15,7 @@ import { MainHubScreen } from './src/screens/MainHubScreen';
 import { PreferenceScreen } from './src/screens/PreferenceScreen';
 import { QueueScreen } from './src/screens/QueueScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import { HomeTab, QueueMode, VenueCategory } from './src/types/tablemate';
+import { HomeTab, QueueMode, VenueCategory } from './src/types/domain';
 
 function App() {
   return (

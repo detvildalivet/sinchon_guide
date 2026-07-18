@@ -11,7 +11,7 @@ import { mapLayoutStyles } from '../design/mapLayout';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { LiveMapView } from './LiveMapView';
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/domain';
 
 const categoryMeta: Record<
   VenueCategory,

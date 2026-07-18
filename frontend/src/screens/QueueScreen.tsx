@@ -24,7 +24,7 @@ import {
   postMessage,
 } from '../api/client';
 import { ApiMessage } from '../api/types';
-import { QueueMode, VenueCategory } from '../types/tablemate';
+import { QueueMode, VenueCategory } from '../types/domain';
 
 const categoryLabels: Record<VenueCategory, string> = {
   restaurant: '음식점',

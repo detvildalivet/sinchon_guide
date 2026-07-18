@@ -100,7 +100,7 @@ export function AuthScreen() {
           { paddingTop: insets.top + theme.spacing.xxl },
         ]}
         keyboardShouldPersistTaps="handled">
-        <Text style={styles.brand}>TableMate</Text>
+        <Text style={styles.brand}>Sinchon Guide</Text>
         <Text style={styles.title}>
           {isSignup ? '회원가입' : '로그인'}
         </Text>

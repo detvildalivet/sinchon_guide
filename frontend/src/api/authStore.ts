@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const TOKEN_KEY = 'tablemate.jwt';
+const TOKEN_KEY = 'sinchonguide.jwt';
 
 // In-memory cache so request builders can read the token synchronously after
 // the initial load. AsyncStorage remains the source of truth across launches.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchSoloRecommendations } from '../api/client';
-import { SoloMenuRecommendation } from '../types/tablemate';
+import { SoloMenuRecommendation } from '../types/domain';
 
 type State = {
   menus: SoloMenuRecommendation[];

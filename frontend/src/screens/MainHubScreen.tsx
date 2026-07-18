@@ -17,7 +17,7 @@ import { TAB_BAR_CLEARANCE, mapLayoutStyles } from '../design/mapLayout';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useSoloRecommendations } from '../hooks/useSoloRecommendations';
-import { HomeTab, SoloMenuRecommendation, VenueCategory } from '../types/tablemate';
+import { HomeTab, SoloMenuRecommendation, VenueCategory } from '../types/domain';
 
 type Props = {
   activeTab: HomeTab;
@@ -144,7 +144,7 @@ export function MainHubScreen({ activeTab, onSelectCategory, onProfilePress }: P
                 color: kickerColor,
               },
             ]}>
-            TableMate
+            Sinchon Guide
           </Animated.Text>
           <Animated.Text
             numberOfLines={1}

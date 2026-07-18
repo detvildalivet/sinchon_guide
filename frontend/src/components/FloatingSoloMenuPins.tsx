@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MapPinAnchor } from './MapPinAnchor';
 import { theme } from '../design/theme';
-import { SoloMenuRecommendation } from '../types/tablemate';
+import { SoloMenuRecommendation } from '../types/domain';
 
 import {
   HOME_PIN_TIP_OFFSET,

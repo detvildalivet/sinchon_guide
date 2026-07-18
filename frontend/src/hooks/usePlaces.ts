@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchPlaces } from '../api/client';
 import { PlacePin } from '../components/FloatingPlacePins';
 import { DEFAULT_PIN_LAYOUT, placeLayout } from '../design/placeLayout';
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/domain';
 
 type State = {
   places: PlacePin[];

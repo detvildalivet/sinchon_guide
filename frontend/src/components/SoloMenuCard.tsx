@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../design/theme';
-import { SoloMenuRecommendation } from '../types/tablemate';
+import { SoloMenuRecommendation } from '../types/domain';
 import { getCategoryLabel } from '../logic/soloMenuRecommendation';
 
 type Props = {

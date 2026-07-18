@@ -1,4 +1,4 @@
-"""Seed the exact data the TableMate frontend currently hardcodes.
+"""Seed the exact data the Sinchon Guide frontend currently hardcodes.
 
 Mirrors `frontend/src/components/FloatingPlacePins.tsx` (9 places) and
 `frontend/src/logic/soloMenuRecommendation.ts` (8 menu candidates) so the app

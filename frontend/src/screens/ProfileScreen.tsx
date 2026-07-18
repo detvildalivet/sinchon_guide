@@ -13,7 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 import { theme } from '../design/theme';
 import { getMyVisits, fetchPlaces } from '../api/client';
 import { ApiVisit } from '../api/types';
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/domain';
 
 type Props = {
   onBackPress: () => void;
@@ -266,7 +266,7 @@ export function ProfileScreen({ onBackPress }: Props) {
 
 7. 연락처
 
-정보 보호에 관한 문의: contact@tablemate.com`}
+정보 보호에 관한 문의: contact@sinchonguide.app`}
               </Text>
             )}
           </ScrollView>

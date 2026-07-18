@@ -1,4 +1,4 @@
-import { VenueCategory } from '../types/tablemate';
+import { VenueCategory } from '../types/domain';
 
 // Solo-menu scoring now lives on the backend (`GET /recommendations/solo`).
 // This module retains only the shared category-label helper used by the UI.
