@@ -11,6 +11,8 @@ Sinchon Guide (frontend app name: **Sinchon Guide**, package `com.sinchonguide`)
 
 User-facing strings and seed data are Korean.
 
+**Current development focus: Android only.** iOS is deferred — see *iOS status (deferred)* under Architecture before doing any iOS work.
+
 ## Commands
 
 ### Backend (run from `backend/`)
@@ -28,7 +30,7 @@ Modules use flat top-level imports (`from database import ...`), so the working 
 ```sh
 npm start                         # Metro dev server
 npm run android                   # build + run Android emulator
-npm run ios                       # build + run iOS simulator (iPhone 17 Pro)
+npm run ios                       # iOS simulator — macOS only; cannot run on the Windows dev machine (iOS deferred)
 npm run lint                      # eslint
 npm test                          # jest
 npm test -- --watch App.test.tsx  # single test file
@@ -46,14 +48,23 @@ npm test -- --watch App.test.tsx  # single test file
 
 - **No navigation library.** `App.tsx` holds a manual `route` state (`'home' | 'preference' | 'queue' | 'profile'`) and renders screens from `src/screens/` conditionally. Auth gating happens in `Root` via `src/auth/AuthContext.tsx` (token persisted with AsyncStorage in `src/api/authStore.ts`).
 - `src/api/config.ts` picks the API host per platform: Android emulator → `10.0.2.2:8000`, iOS simulator → `localhost:8000`. Physical devices need the machine's LAN IP edited in that file.
-- **Real test devices differ per platform**: Android is tested on an Android Studio emulator (native build via `npm run android`); iOS is tested through the **stock Expo Go app** on a physical iPhone, even though this is a bare React Native CLI project with no Expo tooling installed. Stock Expo Go is a fixed prebuilt binary — it cannot load custom native pods. This constrains any native-module decision on iOS (see Maps below).
+- **Current focus: Android only. iOS is deferred** (see *iOS status* below) — don't work on iOS until its open questions are settled. Android is developed and tested on an Android Studio emulator with a **Google Play Services** system image (native build via `npm run android`); this is the only supported dev/demo target right now.
 
 ### Maps
 
-- `src/components/LiveMapView.tsx` wraps `react-native-maps`. `provider={PROVIDER_GOOGLE}` is set **on Android only**; iOS is left on the default (Apple Maps), because stock Expo Go can't load the Google Maps iOS SDK pod. Don't re-add `react-native-google-maps`/`GMSServices` wiring on iOS unless the iOS test workflow moves off stock Expo Go (e.g. a custom `expo-dev-client` build).
+- `src/components/LiveMapView.tsx` wraps `react-native-maps`. `provider={PROVIDER_GOOGLE}` is set **on Android only**; the iOS default (Apple Maps) is left in place for the deferred iOS work (see *iOS status*). Don't re-add `react-native-google-maps`/`GMSServices` wiring on iOS unless/until iOS moves to a custom dev client.
 - No OpenStreetMap/tile-overlay dependency — removed in favor of native map providers.
 - API keys live in `frontend/.env` (gitignored): `map_api_key_android`, `map_api_key_ios` (iOS key currently unused/reserved). `android/app/build.gradle` reads `../.env` directly (`map_api_key_android`) and injects it into `AndroidManifest.xml` via a `manifestPlaceholder` (`com.google.android.geo.API_KEY`) — `.env` is the single source of truth; don't reintroduce a separate `local.properties` copy.
 - The Android emulator's AVD must use a system image with **Google Play Services** (not bare AOSP/plain "Google APIs"), or the map renders blank/gray even with a valid key.
+
+### iOS status (deferred)
+
+Out of scope right now — captured here so the constraints aren't rediscovered later. Despite the branch being named `expo`, **no Expo tooling is installed** (this is bare React Native CLI). The Windows dev machine has **no iOS Simulator** (requires macOS/Xcode), so iOS needs a physical device or a Mac. Two possible paths, each with trade-offs:
+
+- **Stock Expo Go on a physical iPhone** — a fixed prebuilt binary that runs the JS bundle but **cannot load custom native pods**. Only modules Expo Go already ships work: `react-native-maps` ✅, `react-native-safe-area-context` ✅, `@react-native-async-storage/async-storage` ✅ — but **`@react-native-community/geolocation` ✗** (Expo ships `expo-location` instead), so device location breaks, and maps fall back to Apple Maps (no Google Maps iOS SDK pod).
+- **Custom dev client via EAS Build** — cloud macOS build, no local Mac required; supports all native modules (geolocation, Google Maps iOS SDK) but needs EAS setup and a physical device.
+
+Google web-service APIs (Places, Routes, Directions) are plain HTTPS `fetch` calls, **not native modules**, so Expo Go's native-module limit does not apply to them — they work on either iOS path and on Android alike.
 
 ### Android native build (Windows)
 
