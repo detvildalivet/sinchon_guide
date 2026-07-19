@@ -102,3 +102,30 @@ export function regionAround(
     longitudeDelta,
   };
 }
+
+/**
+ * Smallest region that frames both coordinates (e.g. the user and a guided
+ * destination), with padding so neither pin sits flush against the edge.
+ * Used instead of a MapView ref so LiveMapView doesn't need an imperative API.
+ */
+export function regionCovering(
+  a: MapCoordinate,
+  b: MapCoordinate,
+  padding = 1.8,
+): MapRegion {
+  const minLat = Math.min(a.latitude, b.latitude);
+  const maxLat = Math.max(a.latitude, b.latitude);
+  const minLng = Math.min(a.longitude, b.longitude);
+  const maxLng = Math.max(a.longitude, b.longitude);
+
+  const MIN_DELTA = 0.006;
+  const latitudeDelta = Math.max((maxLat - minLat) * padding, MIN_DELTA);
+  const longitudeDelta = Math.max((maxLng - minLng) * padding, MIN_DELTA);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta,
+    longitudeDelta,
+  };
+}

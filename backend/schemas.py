@@ -3,10 +3,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-PlaceType = Literal["restaurant", "cafe", "bar"]
-MealSlot = Literal["breakfast", "lunch", "snack", "dinner", "late"]
-QueueStatus = Literal["open", "closed"]
-SenderType = Literal["system", "user"]
+NeedType = Literal["meal", "cafe", "drinks", "dessert"]
+Budget = Literal["cheap", "mid", "splurge"]
 
 
 # ---------- Users ----------
@@ -35,145 +33,65 @@ class UserSelf(BaseModel):
     created_at: datetime
 
 
-class UserPublic(BaseModel):
-    """Exposed to other users — nickname only."""
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    nickname: str
-
-
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
 
-# ---------- Places ----------
+# ---------- Recommendations ----------
 
-class PlaceCreate(BaseModel):
-    google_place_id: Optional[str] = None
-    slug: Optional[str] = None
+class NeedIn(BaseModel):
+    """The categorized answer to 'what do you need?' — the LLM-ready contract.
+
+    A future free-text input stage just needs to emit this same shape;
+    everything downstream (Places lookup, scoring) is unaffected.
+    """
+    type: NeedType
+    budget: Budget
+    lat: float
+    lng: float
+
+
+class RecommendationOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    place_id: str = Field(alias="placeId")
     name: str
-    latitude: float
-    longitude: float
-    address: Optional[str] = None
-    place_type: PlaceType
-    meta: Optional[str] = None
-    note: Optional[str] = None
-    menu_names: list[str] = Field(default_factory=list)
-    distance_minutes: Optional[int] = None
+    lat: float
+    lng: float
+    rating: Optional[float] = None
+    price_level: Optional[int] = Field(default=None, alias="priceLevel")
+    distance_minutes: int = Field(alias="distanceMinutes")
+    open_now: Optional[bool] = Field(default=None, alias="openNow")
+    score: float
+    reason: str
 
 
-class PlaceOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+# ---------- Routes ----------
 
-    id: int
-    google_place_id: Optional[str] = Field(default=None, alias="googlePlaceId")
-    slug: Optional[str]
-    name: str
-    latitude: float
-    longitude: float
-    address: Optional[str]
-    place_type: PlaceType = Field(alias="placeType")
-    meta: Optional[str]
-    note: Optional[str]
-    menu_names: list[str] = Field(alias="menu")
-    distance_minutes: Optional[int] = Field(default=None, alias="distanceMinutes")
-    revisited_rate: float = Field(alias="revisitedRate")
-    created_at: datetime = Field(alias="createdAt")
+class Coord(BaseModel):
+    lat: float
+    lng: float
+
+
+class RouteIn(BaseModel):
+    origin: Coord
+    destination: Coord
+
+
+class RouteOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    polyline: str
+    distance_minutes: int = Field(alias="distanceMinutes")
+    distance_meters: int = Field(alias="distanceMeters")
 
 
 # ---------- Visits ----------
 
-class VisitStart(BaseModel):
-    place_id: int
-    arrived_at: Optional[datetime] = None
-
-
-class VisitEnd(BaseModel):
-    left_at: Optional[datetime] = None
-
-
-class VisitFeedback(BaseModel):
-    """Either submit mood+price OR set disliked=True. Mood/price ignored if disliked."""
-    mood: Optional[float] = Field(default=None, ge=-1.0, le=1.0)
-    price: Optional[float] = Field(default=None, ge=-1.0, le=1.0)
-    disliked: bool = False
-
-
-class VisitOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    user_id: int
-    place_id: int
-    arrived_at: datetime
-    left_at: Optional[datetime]
-    mood: Optional[float]
-    price: Optional[float]
-    disliked: bool
-    feedback_submitted: bool
-    created_at: datetime
-
-
-# ---------- Queues ----------
-
-class QueueCreate(BaseModel):
-    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
-    place_id: Optional[int] = Field(default=None, alias="placeId")
+class VisitCreate(BaseModel):
+    google_place_id: str = Field(alias="googlePlaceId")
+    place_name: str = Field(alias="placeName")
+    type: NeedType
+    budget: Budget
     model_config = ConfigDict(populate_by_name=True)
-
-
-class QueueInfo(BaseModel):
-    """Matches frontend QueueInfo: { placeId, exists, waitingCount }."""
-    place_id: str = Field(alias="placeId")  # the Place.slug
-    exists: bool
-    waiting_count: int = Field(alias="waitingCount")
-    queue_id: Optional[int] = Field(default=None, alias="queueId")
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class QueueOut(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: int
-    place_id: int = Field(alias="placeId")
-    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
-    status: QueueStatus
-    waiting_count: int = Field(alias="waitingCount")
-    created_at: datetime = Field(alias="createdAt")
-
-
-# ---------- Messages ----------
-
-class MessageCreate(BaseModel):
-    body: str = Field(min_length=1, max_length=2000)
-
-
-class MessageOut(BaseModel):
-    """Matches frontend Message (+ identifiers). Client derives 'me' vs 'system'."""
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
-
-    id: int
-    queue_id: int = Field(alias="queueId")
-    user_id: Optional[int] = Field(default=None, alias="userId")
-    sender_type: SenderType = Field(alias="senderType")
-    body: str
-    created_at: datetime = Field(alias="createdAt")
-
-
-# ---------- Recommendations ----------
-
-class SoloMenuRecommendationOut(BaseModel):
-    """Matches frontend SoloMenuRecommendation exactly."""
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str  # MenuItem.code e.g. "sm1"
-    menu_name: str = Field(alias="menuName")
-    venue_name: str = Field(alias="venueName")
-    category: PlaceType
-    description: str
-    distance: str
-    tags: list[str]
-    score: float
-    reason: str

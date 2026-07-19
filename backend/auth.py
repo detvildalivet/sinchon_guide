@@ -43,8 +43,7 @@ def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None)
 def get_user_from_token(token: str, db: Session) -> Optional[User]:
     """Decode a JWT and return the matching user, or None if invalid.
 
-    Used by the WebSocket endpoint, which authenticates via a `?token=` query
-    param since React Native cannot reliably set WebSocket headers.
+    Used by get_current_user below (header-based auth for all REST routes).
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
