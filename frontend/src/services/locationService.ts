@@ -11,16 +11,27 @@ export type MapRegion = MapCoordinate & {
   longitudeDelta: number;
 };
 
-/** Fallback when permission is denied — 강남역 인근 */
+/**
+ * Fallback when location permission is denied or unavailable (e.g. an
+ * emulator with no mock location set) — 신촌역 인근. This app is scoped to
+ * Sinchon specifically, so the fallback must land there, not some other
+ * neighborhood — a wrong fallback here silently sends every downstream
+ * Places search (and map region) to the wrong part of the city.
+ */
 export const DEFAULT_COORDINATE: MapCoordinate = {
-  latitude: 37.4979,
-  longitude: 127.0276,
+  latitude: 37.5596,
+  longitude: 126.9368,
 };
+
+// ~2.2km across — comfortably frames the backend's 1.2km search radius
+// around a single point without zooming in so tight that neighboring pins
+// would sit off-screen.
+const DEFAULT_ZOOM_DELTA = 0.02;
 
 export const DEFAULT_REGION: MapRegion = {
   ...DEFAULT_COORDINATE,
-  latitudeDelta: 0.012,
-  longitudeDelta: 0.012,
+  latitudeDelta: DEFAULT_ZOOM_DELTA,
+  longitudeDelta: DEFAULT_ZOOM_DELTA,
 };
 
 export type LocationResult =
@@ -93,8 +104,8 @@ export function offsetCoordinate(
 
 export function regionAround(
   coordinate: MapCoordinate,
-  latitudeDelta = 0.012,
-  longitudeDelta = 0.012,
+  latitudeDelta = DEFAULT_ZOOM_DELTA,
+  longitudeDelta = DEFAULT_ZOOM_DELTA,
 ): MapRegion {
   return {
     ...coordinate,

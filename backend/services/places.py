@@ -10,7 +10,6 @@ The Google server-side API key lives only here; it is never shipped to the
 client. Read lazily (at call time, not import time) so the app still boots
 and tests still run without GOOGLE_MAPS_SERVER_KEY configured.
 """
-import os
 from datetime import datetime
 from typing import Optional
 
@@ -18,6 +17,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from models import PlaceAnnotation
+from services.google_errors import require_api_key, request_google_api
 
 PLACES_API_URL = "https://places.googleapis.com/v1/places:searchNearby"
 
@@ -42,17 +42,18 @@ _PRICE_LEVEL_TO_INT = {
 
 FIELD_MASK = (
     "places.id,places.displayName,places.location,places.rating,"
-    "places.priceLevel,places.currentOpeningHours.openNow"
+    "places.priceLevel,places.currentOpeningHours.openNow,places.primaryType"
 )
 
 
-def _api_key() -> str:
-    key = os.environ.get("GOOGLE_MAPS_SERVER_KEY")
-    if not key:
-        raise RuntimeError(
-            "GOOGLE_MAPS_SERVER_KEY is not set — required to call Google Places API"
-        )
-    return key
+def _matches_need_type(primary_type: Optional[str], need_type: str) -> bool:
+    """Nearby Search's `includedTypes` filter matches a place's whole `types`
+    list, not just its primaryType — e.g. a McDonald's carries a generic
+    "cafe"-ish secondary type alongside "hamburger_restaurant" and slips into
+    cafe results even though no one would call it a cafe. Re-check against
+    the type Google itself picked as primary before trusting the category.
+    """
+    return primary_type in TYPE_MAP[need_type]
 
 
 def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[dict]:
@@ -79,17 +80,20 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
     }
     headers = {
         "Content-Type": "application/json",
-        "X-Goog-Api-Key": _api_key(),
+        "X-Goog-Api-Key": require_api_key(),
         "X-Goog-FieldMask": FIELD_MASK,
     }
 
     with httpx.Client(timeout=10.0) as client:
-        response = client.post(PLACES_API_URL, json=body, headers=headers)
-        response.raise_for_status()
+        response = request_google_api(
+            client, "POST", PLACES_API_URL, "Google Places API", json=body, headers=headers
+        )
         data = response.json()
 
     candidates: list[dict] = []
     for place in data.get("places", []):
+        if not _matches_need_type(place.get("primaryType"), need_type):
+            continue
         location = place.get("location", {})
         candidate = {
             "place_id": place["id"],

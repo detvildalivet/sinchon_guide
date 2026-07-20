@@ -15,7 +15,7 @@ import { MapMarkerPin } from '../components/MapMarkerPin';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
-import { postRoute, postVisit } from '../api/client';
+import { ApiError, postRoute, postVisit } from '../api/client';
 import { decodePolyline } from '../utils/decodePolyline';
 import { MapCoordinate, regionCovering } from '../services/locationService';
 import { Need, Recommendation } from '../types/recommendation';
@@ -53,9 +53,11 @@ export function GuideScreen({ place, need, onBack }: Props) {
           setRouteCoords(decodePolyline(result.polyline));
         }
       })
-      .catch(() => {
+      .catch(err => {
         if (active) {
-          setRouteError('경로를 불러오지 못했어요.');
+          setRouteError(
+            err instanceof ApiError ? err.message : '경로를 불러오지 못했어요.',
+          );
         }
       })
       .finally(() => {

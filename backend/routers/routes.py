@@ -1,25 +1,15 @@
-import os
-
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from auth import get_current_user
 from models import User
 from schemas import RouteIn, RouteOut
+from services.google_errors import require_api_key, request_google_api
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 
 ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 FIELD_MASK = "routes.polyline.encodedPolyline,routes.distanceMeters,routes.duration"
-
-
-def _api_key() -> str:
-    key = os.environ.get("GOOGLE_MAPS_SERVER_KEY")
-    if not key:
-        raise RuntimeError(
-            "GOOGLE_MAPS_SERVER_KEY is not set — required to call Google Routes API"
-        )
-    return key
 
 
 @router.post("", response_model=RouteOut)
@@ -54,13 +44,14 @@ def compute_route(
     }
     headers = {
         "Content-Type": "application/json",
-        "X-Goog-Api-Key": _api_key(),
+        "X-Goog-Api-Key": require_api_key(),
         "X-Goog-FieldMask": FIELD_MASK,
     }
 
     with httpx.Client(timeout=10.0) as client:
-        response = client.post(ROUTES_API_URL, json=body, headers=headers)
-        response.raise_for_status()
+        response = request_google_api(
+            client, "POST", ROUTES_API_URL, "Google Routes API", json=body, headers=headers
+        )
         data = response.json()
 
     routes = data.get("routes", [])
