@@ -91,7 +91,7 @@ android {
         versionCode 1
         versionName "1.0"
         manifestPlaceholders = [
-            GOOGLE_MAPS_API_KEY: envProps.getProperty('map_api_key_android', '')
+            NAVER_MAP_CLIENT_ID: envProps.getProperty('naver_map_client_id', '')
         ]
     }
     // Windows hits MAX_PATH (260 chars) compiling New Architecture codegen C++

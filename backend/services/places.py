@@ -1,14 +1,28 @@
-"""Google Places API (New) integration.
+"""Kakao Local API integration.
 
 This is the app's only source of place breadth — the server does not own a
-place catalog. It queries Nearby Search around the user's location and caches
-a thin PlaceAnnotation row per result (see models.PlaceAnnotation) so future
-personalization signals (curated tags, visit history) have somewhere to live
-without mirroring all of Sinchon.
+place catalog. It queries Kakao's category/keyword search around the user's
+location and caches a thin PlaceAnnotation row per result (see
+models.PlaceAnnotation) so future personalization signals (curated tags,
+visit history) have somewhere to live without mirroring all of Sinchon.
 
-The Google server-side API key lives only here; it is never shipped to the
-client. Read lazily (at call time, not import time) so the app still boots
-and tests still run without GOOGLE_MAPS_SERVER_KEY configured.
+Was Google Places API (New) — moved to Kakao because Google's IP-restricted
+key kept breaking on IP changes, and this session's research found no viable
+Naver substitute: NCP's Maps product family has no place/POI search API at
+all, and Naver's own Local Search API (a different Naver platform) is
+keyword-only with no coordinate/radius filter and a 5-result cap. Kakao's
+category+radius search is the structural analog to Google's searchNearby.
+
+Trade-off: Kakao's response has no rating, price-level, or open-now field —
+unlike Google Places, neither Kakao nor Naver expose that data via public
+API. `services/recommendation.py`'s scorer already treats those fields as
+Optional with neutral defaults, so this degrades ranking to closest-first +
+visit-history rather than breaking anything; see CLAUDE.md for the full
+reasoning and why AskScreen no longer asks for a budget.
+
+The Kakao REST API key lives only here; it is never shipped to the client.
+Read lazily (at call time, not import time) via api_errors.require_kakao_key()
+so the app still boots and tests still run without KAKAO_REST_API_KEY set.
 """
 from datetime import datetime
 from typing import Optional
@@ -17,92 +31,121 @@ import httpx
 from sqlalchemy.orm import Session
 
 from models import PlaceAnnotation
-from services.google_errors import require_api_key, request_google_api
+from services.api_errors import request_external_api, require_kakao_key
 
-PLACES_API_URL = "https://places.googleapis.com/v1/places:searchNearby"
+CATEGORY_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/category.json"
+KEYWORD_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
 
-SEARCH_RADIUS_METERS = 1200.0
+SEARCH_RADIUS_METERS = 1200
+KAKAO_PAGE_SIZE = 15  # Kakao's per-page max (1-15); one page is plenty at this radius.
 
-# Need.type -> Places API `includedTypes`.
-TYPE_MAP: dict[str, list[str]] = {
-    "meal": ["restaurant"],
-    "cafe": ["cafe"],
-    "drinks": ["bar"],
-    "dessert": ["bakery", "dessert_shop", "ice_cream_shop"],
+# Need.type -> how to query Kakao. Kakao's keyword endpoint requires a `query`
+# string, so need types with no natural keyword (a plain "restaurant"/"cafe"
+# browse) use the category-only endpoint instead; need types Kakao doesn't
+# give a dedicated category_group_code (bars, dessert shops are subcategories
+# of the FD6/CE7 groups, not their own codes) use the keyword endpoint to
+# narrow within that group.
+#
+# category_name_must_include mirrors the old _matches_need_type Google
+# primaryType check — same defensive purpose (Nearby Search's includedTypes
+# matched a place's whole types list, not just its primary type, so a
+# McDonald's could slip into "cafe" results; Kakao's broad FD6/CE7 groups
+# have the same failure mode, e.g. a cafe surfacing under a "meal" search).
+NEED_TYPE_CONFIG: dict[str, dict] = {
+    "meal": {
+        "category_group_code": "FD6",
+        "keyword": None,
+        "category_name_must_include": None,
+        "category_name_must_exclude": ["카페", "술집"],
+    },
+    "cafe": {
+        "category_group_code": "CE7",
+        "keyword": None,
+        "category_name_must_include": ["카페"],
+        "category_name_must_exclude": None,
+    },
+    "drinks": {
+        "category_group_code": "FD6",
+        "keyword": "술집",
+        "category_name_must_include": ["술집"],
+        "category_name_must_exclude": None,
+    },
+    "dessert": {
+        "category_group_code": "CE7",
+        "keyword": "디저트",
+        "category_name_must_include": ["카페", "디저트", "베이커리", "아이스크림"],
+        "category_name_must_exclude": None,
+    },
 }
 
-# Google's Places (New) priceLevel enum, mapped to an integer 0-4 for scoring.
-_PRICE_LEVEL_TO_INT = {
-    "PRICE_LEVEL_FREE": 0,
-    "PRICE_LEVEL_INEXPENSIVE": 1,
-    "PRICE_LEVEL_MODERATE": 2,
-    "PRICE_LEVEL_EXPENSIVE": 3,
-    "PRICE_LEVEL_VERY_EXPENSIVE": 4,
-}
 
-FIELD_MASK = (
-    "places.id,places.displayName,places.location,places.rating,"
-    "places.priceLevel,places.currentOpeningHours.openNow,places.primaryType"
-)
-
-
-def _matches_need_type(primary_type: Optional[str], need_type: str) -> bool:
-    """Nearby Search's `includedTypes` filter matches a place's whole `types`
-    list, not just its primaryType — e.g. a McDonald's carries a generic
-    "cafe"-ish secondary type alongside "hamburger_restaurant" and slips into
-    cafe results even though no one would call it a cafe. Re-check against
-    the type Google itself picked as primary before trusting the category.
+def _matches_need_type(category_name: Optional[str], need_type: str) -> bool:
+    """Post-filter Kakao's `category_name` (a '대분류 > 중분류 > ...' breadcrumb
+    string) against the need type's expected subcategory, the same way the
+    old Google-era check re-verified primaryType instead of trusting the
+    request filter alone.
     """
-    return primary_type in TYPE_MAP[need_type]
+    if category_name is None:
+        return False
+    config = NEED_TYPE_CONFIG[need_type]
+
+    must_exclude = config["category_name_must_exclude"]
+    if must_exclude and any(term in category_name for term in must_exclude):
+        return False
+
+    must_include = config["category_name_must_include"]
+    if must_include and not any(term in category_name for term in must_include):
+        return False
+
+    return True
 
 
 def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[dict]:
-    """Query Places API (New) Nearby Search for candidates around (lat, lng).
+    """Query Kakao Local for candidates around (lat, lng).
 
-    Budget is intentionally NOT sent as a request filter — Nearby Search
-    (unlike Text Search) does not reliably support a `priceLevels` request
-    field. Budget fit is instead scored client-side (services/recommendation.py)
-    using the `priceLevel` each result returns.
+    Budget is intentionally NOT sent as a request filter — Kakao has no
+    price-level concept at all (see module docstring). `price_level` is
+    always None on returned candidates; the scorer treats that as neutral.
 
     Returns a list of plain dicts: {place_id, name, lat, lng, rating,
-    price_level, open_now}.
+    price_level, open_now} — rating/price_level/open_now are always None
+    (Kakao doesn't provide them), kept in the shape for schema/scorer
+    compatibility.
     """
-    body = {
-        "includedTypes": TYPE_MAP[need_type],
-        "maxResultCount": 20,
-        "rankPreference": "DISTANCE",
-        "locationRestriction": {
-            "circle": {
-                "center": {"latitude": lat, "longitude": lng},
-                "radius": SEARCH_RADIUS_METERS,
-            }
-        },
+    config = NEED_TYPE_CONFIG[need_type]
+    url = KEYWORD_SEARCH_URL if config["keyword"] else CATEGORY_SEARCH_URL
+
+    params = {
+        "category_group_code": config["category_group_code"],
+        "x": lng,
+        "y": lat,
+        "radius": SEARCH_RADIUS_METERS,
+        "size": KAKAO_PAGE_SIZE,
+        "sort": "distance",
     }
-    headers = {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": require_api_key(),
-        "X-Goog-FieldMask": FIELD_MASK,
-    }
+    if config["keyword"]:
+        params["query"] = config["keyword"]
+
+    headers = {"Authorization": f"KakaoAK {require_kakao_key()}"}
 
     with httpx.Client(timeout=10.0) as client:
-        response = request_google_api(
-            client, "POST", PLACES_API_URL, "Google Places API", json=body, headers=headers
+        response = request_external_api(
+            client, "GET", url, "Kakao Local API", params=params, headers=headers
         )
         data = response.json()
 
     candidates: list[dict] = []
-    for place in data.get("places", []):
-        if not _matches_need_type(place.get("primaryType"), need_type):
+    for place in data.get("documents", []):
+        if not _matches_need_type(place.get("category_name"), need_type):
             continue
-        location = place.get("location", {})
         candidate = {
             "place_id": place["id"],
-            "name": place.get("displayName", {}).get("text", "이름 없음"),
-            "lat": location.get("latitude"),
-            "lng": location.get("longitude"),
-            "rating": place.get("rating"),
-            "price_level": _PRICE_LEVEL_TO_INT.get(place.get("priceLevel", "")),
-            "open_now": place.get("currentOpeningHours", {}).get("openNow"),
+            "name": place.get("place_name", "이름 없음"),
+            "lat": float(place["y"]),
+            "lng": float(place["x"]),
+            "rating": None,
+            "price_level": None,
+            "open_now": None,
         }
         candidates.append(candidate)
         _upsert_annotation(db, candidate)

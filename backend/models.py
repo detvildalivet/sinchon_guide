@@ -31,16 +31,16 @@ class User(Base):
 class Visit(Base):
     """A record of a place the user chose to be guided to.
 
-    Keyed by Google's place_id (not a local FK) since the app no longer owns a
-    place catalog — Places API supplies candidates live. This table is the
-    thin, server-owned signal that drives visit-history personalization in
-    services/recommendation.py.
+    Keyed by the search provider's place_id (Kakao's `id`, not a local FK)
+    since the app no longer owns a place catalog — Kakao Local supplies
+    candidates live. This table is the thin, server-owned signal that drives
+    visit-history personalization in services/recommendation.py.
     """
     __tablename__ = "visits"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    google_place_id = Column(String, nullable=False, index=True)
+    place_id = Column(String, nullable=False, index=True)
     place_name = Column(String, nullable=False)
     type = Column(String, nullable=False, index=True)  # meal / cafe / drinks / dessert
     budget = Column(String, nullable=False)  # cheap / mid / splurge
@@ -50,20 +50,22 @@ class Visit(Base):
 
 
 class PlaceAnnotation(Base):
-    """Thin server-side cache/annotation layer keyed by Google's place_id.
+    """Thin server-side cache/annotation layer keyed by the search provider's
+    place_id (Kakao's `id`).
 
     Deliberately NOT a full mirror of Sinchon's places — only rows for places
     that have actually surfaced in a recommendation get cached here. Basic
     fields are refreshed opportunistically (last_fetched); curated_tags is the
-    slot for hand-tuned personalization signals that Places API can't supply.
+    slot for hand-tuned personalization signals Kakao's API can't supply
+    (Kakao has no rating/price-level/open-now data — see services/places.py).
     """
     __tablename__ = "place_annotations"
 
-    place_id = Column(String, primary_key=True)  # Google place_id
+    place_id = Column(String, primary_key=True)  # Kakao place id
     name = Column(String, nullable=False)
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
     rating = Column(Float, nullable=True)
-    price_level = Column(Integer, nullable=True)  # 0-4, Google's PriceLevel enum as int
+    price_level = Column(Integer, nullable=True)  # 0-4 scale; currently always unset — no active provider supplies price data (see services/places.py)
     curated_tags = Column(JSON, default=list, nullable=False)
     last_fetched = Column(DateTime, default=datetime.utcnow, nullable=False)

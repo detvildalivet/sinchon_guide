@@ -79,10 +79,19 @@ class RouteIn(BaseModel):
     destination: Coord
 
 
+class LatLng(BaseModel):
+    """Matches frontend MapCoordinate — {latitude, longitude}, not {lat, lng}
+    like Coord above, since this feeds NaverMapPathOverlay's `coords` prop
+    directly with no reshaping on the client."""
+
+    latitude: float
+    longitude: float
+
+
 class RouteOut(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    polyline: str
+    coordinates: list[LatLng]
     distance_minutes: int = Field(alias="distanceMinutes")
     distance_meters: int = Field(alias="distanceMeters")
 
@@ -90,7 +99,7 @@ class RouteOut(BaseModel):
 # ---------- Visits ----------
 
 class VisitCreate(BaseModel):
-    google_place_id: str = Field(alias="googlePlaceId")
+    place_id: str = Field(alias="placeId")
     place_name: str = Field(alias="placeName")
     type: NeedType
     budget: Budget

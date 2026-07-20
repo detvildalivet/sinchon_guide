@@ -1,17 +1,19 @@
 import React, { PropsWithChildren } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { MapViewProps, PROVIDER_GOOGLE } from 'react-native-maps';
-import { MapRegion } from '../services/locationService';
+import { StyleSheet, View } from 'react-native';
+import { NaverMapView, NaverMapViewProps } from '@mj-studio/react-native-naver-map';
+import { MapCoordinate, MapRegion } from '../services/locationService';
 
 type Props = PropsWithChildren<{
   region: MapRegion;
+  userCoordinate?: MapCoordinate;
   variant?: 'together' | 'solo';
   onMapPress?: () => void;
-  mapProps?: Partial<MapViewProps>;
+  mapProps?: Partial<NaverMapViewProps>;
 }>;
 
 export function LiveMapView({
   region,
+  userCoordinate,
   variant = 'together',
   onMapPress,
   mapProps,
@@ -21,31 +23,24 @@ export function LiveMapView({
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <MapView
+      <NaverMapView
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={region}
-        mapType="standard"
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
-        zoomEnabled
-        scrollEnabled
-        pitchEnabled={false}
-        rotateEnabled={false}
-        onPress={
-          onMapPress
-            ? event => {
-                if (event.nativeEvent.action !== 'marker-press') {
-                  onMapPress();
-                }
-              }
+        region={region}
+        isShowCompass={false}
+        isShowLocationButton={false}
+        isScrollGesturesEnabled
+        isZoomGesturesEnabled
+        isTiltGesturesEnabled={false}
+        isRotateGesturesEnabled={false}
+        locationOverlay={
+          userCoordinate
+            ? { isVisible: true, position: userCoordinate }
             : undefined
         }
+        onTapMap={onMapPress}
         {...mapProps}>
         {children}
-      </MapView>
+      </NaverMapView>
       <View
         pointerEvents="none"
         style={[styles.veil, solo ? styles.veilSolo : styles.veilTogether]}

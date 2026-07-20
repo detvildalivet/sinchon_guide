@@ -22,7 +22,7 @@ def create_visit(
     """
     visit = Visit(
         user_id=user.id,
-        google_place_id=payload.google_place_id,
+        place_id=payload.place_id,
         place_name=payload.place_name,
         type=payload.type,
         budget=payload.budget,

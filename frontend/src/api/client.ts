@@ -138,7 +138,7 @@ export function postRoute(
 // ---------- Visits ----------
 
 export type VisitPayload = {
-  googlePlaceId: string;
+  placeId: string;
   placeName: string;
   type: Need['type'];
   budget: Need['budget'];

@@ -14,19 +14,21 @@ import { useUserLocation } from '../hooks/useUserLocation';
 import { ApiError, postRecommendations } from '../api/client';
 import { Budget, Need, NeedType, Recommendation } from '../types/recommendation';
 
-type Step = 'type' | 'budget' | 'result';
+type Step = 'type' | 'result';
+
+// No Korean place-search provider (Kakao Local, Naver Local Search) exposes
+// price-level/menu data via public API the way Google Places did, so budget
+// no longer affects ranking (services/recommendation.py's _budget_fit is a
+// no-op once price_level is always null) — AskScreen stopped asking for it.
+// `Need.budget` stays in the wire contract (still recorded on Visit) with a
+// constant neutral value, in case a future data source revives it.
+const DEFAULT_BUDGET: Budget = 'mid';
 
 const TYPE_OPTIONS: { value: NeedType; label: string }[] = [
   { value: 'meal', label: '식사' },
   { value: 'cafe', label: '카페' },
   { value: 'drinks', label: '술 한잔' },
   { value: 'dessert', label: '디저트' },
-];
-
-const BUDGET_OPTIONS: { value: Budget; label: string }[] = [
-  { value: 'cheap', label: '가성비' },
-  { value: 'mid', label: '적당히' },
-  { value: 'splurge', label: '플렉스' },
 ];
 
 type Props = {
@@ -39,41 +41,31 @@ export function AskScreen({ onGuide }: Props) {
 
   const [step, setStep] = useState<Step>('type');
   const [needType, setNeedType] = useState<NeedType | null>(null);
-  const [budget, setBudgetChoice] = useState<Budget | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Recommendation[]>([]);
   const [rerollIndex, setRerollIndex] = useState(0);
 
-  const chooseType = (value: NeedType) => {
+  const chooseType = async (value: NeedType) => {
     setNeedType(value);
-    setStep('budget');
-  };
-
-  const chooseBudget = async (chosenBudget: Budget) => {
-    if (!needType) {
-      return;
-    }
-    setBudgetChoice(chosenBudget);
     setLoading(true);
     setError(null);
+    setStep('result');
     try {
       const result = await postRecommendations({
-        type: needType,
-        budget: chosenBudget,
+        type: value,
+        budget: DEFAULT_BUDGET,
         lat: center.latitude,
         lng: center.longitude,
       });
       setCandidates(result);
       setRerollIndex(0);
-      setStep('result');
     } catch (err) {
       setError(
         err instanceof ApiError
           ? err.message
           : '추천을 불러오지 못했어요. 다시 시도해주세요.',
       );
-      setStep('result');
     } finally {
       setLoading(false);
     }
@@ -81,7 +73,6 @@ export function AskScreen({ onGuide }: Props) {
 
   const startOver = () => {
     setNeedType(null);
-    setBudgetChoice(null);
     setCandidates([]);
     setRerollIndex(0);
     setError(null);
@@ -117,23 +108,6 @@ export function AskScreen({ onGuide }: Props) {
         </View>
       )}
 
-      {step === 'budget' && (
-        <View style={[shellStyles.promptBox, styles.panel]}>
-          <Text style={styles.question}>예산은요?</Text>
-          <View style={styles.optionGrid}>
-            {BUDGET_OPTIONS.map(option => (
-              <AppButton
-                key={option.value}
-                label={option.label}
-                onPress={() => chooseBudget(option.value)}
-                style={styles.optionButton}
-              />
-            ))}
-          </View>
-          <AppButton label="다시 선택" variant="ghost" onPress={startOver} />
-        </View>
-      )}
-
       {step === 'result' && (
         <View style={[shellStyles.promptBox, styles.panel]}>
           {loading ? (
@@ -155,10 +129,9 @@ export function AskScreen({ onGuide }: Props) {
                   variant="accent"
                   onPress={() =>
                     needType &&
-                    budget &&
                     onGuide(current, {
                       type: needType,
-                      budget,
+                      budget: DEFAULT_BUDGET,
                       lat: center.latitude,
                       lng: center.longitude,
                     })

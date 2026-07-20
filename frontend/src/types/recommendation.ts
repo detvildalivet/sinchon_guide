@@ -25,9 +25,11 @@ export type Recommendation = {
   reason: string;
 };
 
-// Matches backend schemas.RouteOut.
+// Matches backend schemas.RouteOut. `coordinates` is the walking-path
+// geometry from TMAP's Pedestrian Route API, already in the {latitude,
+// longitude} shape NaverMapPathOverlay's `coords` prop expects directly.
 export type RouteResult = {
-  polyline: string;
+  coordinates: { latitude: number; longitude: number }[];
   distanceMinutes: number;
   distanceMeters: number;
 };

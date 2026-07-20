@@ -1,21 +1,40 @@
 from services.places import _matches_need_type
 
 
-def test_exact_primary_type_matches():
-    assert _matches_need_type("cafe", "cafe") is True
+def test_cafe_matches_cafe():
+    assert _matches_need_type("음식점 > 카페,디저트 > 카페", "cafe") is True
 
 
-def test_fast_food_does_not_match_cafe():
-    # Regression: a McDonald's returned by Nearby Search(includedTypes=["cafe"])
-    # because its `types` list carries a generic cafe-ish secondary type,
-    # even though Google's own primaryType calls it something else.
-    assert _matches_need_type("hamburger_restaurant", "cafe") is False
+def test_restaurant_does_not_match_cafe():
+    assert _matches_need_type("음식점 > 한식 > 국밥", "cafe") is False
 
 
-def test_missing_primary_type_does_not_match():
+def test_missing_category_name_does_not_match():
     assert _matches_need_type(None, "cafe") is False
 
 
-def test_dessert_accepts_any_of_its_mapped_types():
-    assert _matches_need_type("bakery", "dessert") is True
-    assert _matches_need_type("ice_cream_shop", "dessert") is True
+def test_bar_matches_drinks_but_not_meal():
+    # Regression: Kakao groups bars under the same FD6 (음식점) code as
+    # restaurants — there's no dedicated category_group_code for 술집, unlike
+    # Google's old "bar" type. Only the keyword-narrowed category_name check
+    # should accept it as `drinks`.
+    bar_category = "음식점 > 술집 > 호프,요리주점"
+    assert _matches_need_type(bar_category, "drinks") is True
+    assert _matches_need_type(bar_category, "meal") is False
+
+
+def test_cafe_category_does_not_match_meal():
+    # Regression counterpart to the bar case: a cafe surfacing under a broad
+    # FD6 "meal" search should still be rejected (mirrors the old
+    # McDonald's-under-cafe check from the Google Places era).
+    assert _matches_need_type("음식점 > 카페,디저트 > 카페", "meal") is False
+
+
+def test_dessert_accepts_bakery_and_ice_cream_and_dessert_cafes():
+    assert _matches_need_type("음식점 > 카페,디저트 > 베이커리", "dessert") is True
+    assert _matches_need_type("음식점 > 카페,디저트 > 아이스크림", "dessert") is True
+    assert _matches_need_type("음식점 > 카페,디저트 > 디저트카페", "dessert") is True
+
+
+def test_dessert_rejects_unrelated_restaurant_category():
+    assert _matches_need_type("음식점 > 한식 > 국밥", "dessert") is False

@@ -1,11 +1,11 @@
-"""Shared error surfacing for Google API calls (Places, Routes).
+"""Shared error surfacing for external API calls (Kakao Local, TMAP routes).
 
-Without this, any Google-side rejection (bad/restricted key, billing not
+Without this, any upstream rejection (bad/restricted key, billing not
 enabled, quota exceeded, malformed request) bubbles up as an unhandled
 exception and FastAPI turns it into an opaque "Internal Server Error" with
 no detail — indistinguishable from every other kind of 500. This wraps such
-failures into an HTTPException carrying Google's actual error message, so
-the client (and its "앗, 문제가 생겼어요" error card) can show something
+failures into an HTTPException carrying the provider's actual error message,
+so the client (and its "앗, 문제가 생겼어요" error card) can show something
 actionable instead of just "HTTP 500".
 """
 import os
@@ -14,20 +14,37 @@ import httpx
 from fastapi import HTTPException, status
 
 
-def require_api_key() -> str:
-    key = os.environ.get("GOOGLE_MAPS_SERVER_KEY")
+def require_kakao_key() -> str:
+    key = os.environ.get("KAKAO_REST_API_KEY")
     if not key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=(
-                "Server is not configured with GOOGLE_MAPS_SERVER_KEY — "
-                "set it in the backend environment (see CLAUDE.md)."
+                "Server is not configured with KAKAO_REST_API_KEY — "
+                "set it in the backend environment (see CLAUDE.md). Use the "
+                "app's REST API key, not the JavaScript or Native App key."
             ),
         )
     return key
 
 
-def request_google_api(
+def require_tmap_key() -> str:
+    key = os.environ.get("TMAP_APP_KEY")
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Server is not configured with TMAP_APP_KEY — "
+                "set it in the backend environment (see CLAUDE.md). "
+                "The app registered for this key must have the 보행자 "
+                "경로안내 (Pedestrian) product subscribed, not just 대중교통 "
+                "(Transit)."
+            ),
+        )
+    return key
+
+
+def request_external_api(
     client: httpx.Client, method: str, url: str, api_name: str, **kwargs
 ) -> httpx.Response:
     try:

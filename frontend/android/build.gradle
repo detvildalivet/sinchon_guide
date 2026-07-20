@@ -19,3 +19,11 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// @mj-studio/react-native-naver-map's native SDK is published here, not on
+// Maven Central/Google's repo.
+allprojects {
+    repositories {
+        maven { url "https://repository.map.naver.com/archive/maven" }
+    }
+}

@@ -9,4 +9,6 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('@react-native-community/geolocation', () => ({
   getCurrentPosition: jest.fn(),
   requestAuthorization: jest.fn(),
+  watchPosition: jest.fn(() => 0),
+  clearWatch: jest.fn(),
 }));

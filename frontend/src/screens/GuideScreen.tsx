@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Polyline } from 'react-native-maps';
+import { NaverMapPathOverlay } from '@mj-studio/react-native-naver-map';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { LiveMapView } from '../components/LiveMapView';
@@ -16,7 +16,6 @@ import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { ApiError, postRoute, postVisit } from '../api/client';
-import { decodePolyline } from '../utils/decodePolyline';
 import { MapCoordinate, regionCovering } from '../services/locationService';
 import { Need, Recommendation } from '../types/recommendation';
 
@@ -25,6 +24,8 @@ type Props = {
   need: Need;
   onBack: () => void;
 };
+
+const PIN_SIZE = 20; // must match styles.pin's width/height below
 
 export function GuideScreen({ place, need, onBack }: Props) {
   const insets = useSafeAreaInsets();
@@ -50,7 +51,7 @@ export function GuideScreen({ place, need, onBack }: Props) {
     postRoute(userCoord, placeCoord)
       .then(result => {
         if (active) {
-          setRouteCoords(decodePolyline(result.polyline));
+          setRouteCoords(result.coordinates);
         }
       })
       .catch(err => {
@@ -77,17 +78,41 @@ export function GuideScreen({ place, need, onBack }: Props) {
     [userCoord, placeCoord],
   );
 
-  const openInGoogleMaps = async () => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${placeCoord.latitude},${placeCoord.longitude}&travelmode=walking`;
+  const openInNaverMap = async () => {
     postVisit({
-      googlePlaceId: place.placeId,
+      placeId: place.placeId,
       placeName: place.name,
       type: need.type,
       budget: need.budget,
     }).catch(() => {
       // Visit logging is best-effort personalization data; never block navigation on it.
     });
-    await Linking.openURL(url);
+
+    // nmap://route/walk — Naver Map's own walking-directions deep link
+    // (https://guide.ncloud-docs.com/docs/maps-url-scheme). Note: this opens
+    // Naver's turn-by-turn pedestrian nav, distinct from the in-app polyline
+    // above which comes from TMAP's Pedestrian Route API.
+    const params = new URLSearchParams({
+      slat: String(userCoord.latitude),
+      slng: String(userCoord.longitude),
+      sname: '출발',
+      dlat: String(placeCoord.latitude),
+      dlng: String(placeCoord.longitude),
+      dname: place.name,
+      appname: 'com.sinchonguide',
+    });
+    const naverUrl = `nmap://route/walk?${params.toString()}`;
+    const canOpenNaverMap = await Linking.canOpenURL('nmap://');
+
+    if (canOpenNaverMap) {
+      await Linking.openURL(naverUrl);
+      return;
+    }
+
+    // Not installed — send to the Play Store listing instead of failing silently.
+    await Linking.openURL(
+      'https://play.google.com/store/apps/details?id=com.nhn.android.nmap',
+    );
   };
 
   return (
@@ -97,15 +122,15 @@ export function GuideScreen({ place, need, onBack }: Props) {
           <ActivityIndicator color={theme.colors.primary} size="large" />
         </View>
       ) : (
-        <LiveMapView region={region} variant="solo" mapProps={{ region }}>
-          <MapMarkerPin coordinate={placeCoord}>
-            <View style={styles.pin} />
+        <LiveMapView region={region} userCoordinate={userCoord} variant="solo">
+          <MapMarkerPin coordinate={placeCoord} width={PIN_SIZE} height={PIN_SIZE}>
+            <View style={styles.pin} collapsable={false} />
           </MapMarkerPin>
-          {routeCoords.length > 0 && (
-            <Polyline
-              coordinates={routeCoords}
-              strokeColor={theme.colors.primary}
-              strokeWidth={4}
+          {routeCoords.length > 1 && (
+            <NaverMapPathOverlay
+              coords={routeCoords}
+              color={theme.colors.primary}
+              width={4}
             />
           )}
         </LiveMapView>
@@ -133,9 +158,9 @@ export function GuideScreen({ place, need, onBack }: Props) {
           <Text style={styles.errorText}>{routeError}</Text>
         ) : null}
         <AppButton
-          label="구글 지도에서 열기"
+          label="네이버 지도로 안내"
           variant="accent"
-          onPress={openInGoogleMaps}
+          onPress={openInNaverMap}
           style={styles.action}
         />
       </View>
@@ -190,8 +215,8 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
   pin: {
-    width: 20,
-    height: 20,
+    width: PIN_SIZE,
+    height: PIN_SIZE,
     borderRadius: theme.radius.pill,
     backgroundColor: theme.colors.accent,
     borderWidth: 3,

@@ -89,6 +89,31 @@ export function requestCurrentLocation(): Promise<LocationResult> {
   });
 }
 
+/**
+ * Naver's location overlay (the live user dot) has no built-in GPS tracking
+ * of its own — unlike react-native-maps' `showsUserLocation`, the app must
+ * keep feeding it a fresh coordinate. Returns an unsubscribe function.
+ */
+export function watchPosition(
+  onUpdate: (coordinate: MapCoordinate) => void,
+): () => void {
+  const watchId = Geolocation.watchPosition(
+    position => {
+      onUpdate({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    },
+    () => {
+      // Best-effort live tracking; keep showing the last known/fallback
+      // position rather than clearing it on a transient watch error.
+    },
+    { enableHighAccuracy: Platform.OS === 'ios', distanceFilter: 5 },
+  );
+
+  return () => Geolocation.clearWatch(watchId);
+}
+
 export function offsetCoordinate(
   origin: MapCoordinate,
   metersNorth: number,

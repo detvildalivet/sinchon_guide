@@ -71,7 +71,7 @@ def score_candidates(
     """Score and sort candidates descending. Each output dict adds
     distance_minutes, score, and reason to the input candidate fields.
 
-    visit_counts_by_place is keyed by Google place_id (not need_type): a
+    visit_counts_by_place is keyed by place_id (not need_type): a
     per-type count would be a constant added to every candidate in a single
     request (since need_type is fixed per call) and could never actually
     break a tie between candidates. Per-place history — "you've been here

@@ -20,16 +20,18 @@ def recommend(
 ):
     """Ask -> categorize -> recommend, stage 3.
 
-    Queries Google Places for candidates near the user, then ranks them
-    closest-first with rating/budget/history as tiebreakers. See
-    services/recommendation.py for the scoring policy.
+    Queries Kakao Local for candidates near the user, then ranks them
+    closest-first with visit history as a tiebreaker (rating/budget-fit are
+    dormant — Kakao has no rating/price data; see services/places.py and
+    services/recommendation.py). See services/recommendation.py for the
+    scoring policy.
     """
     candidates = search_nearby(db, need.lat, need.lng, need.type)
 
     visit_rows = (
-        db.query(Visit.google_place_id, func.count(Visit.id))
+        db.query(Visit.place_id, func.count(Visit.id))
         .filter(Visit.user_id == user.id)
-        .group_by(Visit.google_place_id)
+        .group_by(Visit.place_id)
         .all()
     )
     visit_counts_by_place = {row[0]: row[1] for row in visit_rows}
