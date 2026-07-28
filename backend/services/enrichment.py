@@ -85,8 +85,12 @@ def _is_plausible_match(candidate: dict, google_place: dict) -> bool:
 
 
 def _parse_google_place(google_place: dict) -> dict:
-    """Pure transform: a Text Search result place -> the two fields the
-    scorer consumes. Any field Google didn't return stays None."""
+    """Pure transform: a Text Search result place -> the fields this app
+    surfaces. Any field Google didn't return stays None.
+
+    `userRatingCount` was already in FIELD_MASK (free — no billing-tier
+    change) but used to be parsed away; it's now kept as `rating_count` so
+    RecommendationOut can show "4.3 (128)" instead of a bare number."""
     open_now = None
     current_hours = google_place.get("currentOpeningHours")
     if current_hours is not None:
@@ -99,6 +103,7 @@ def _parse_google_place(google_place: dict) -> dict:
     return {
         "rating": google_place.get("rating"),
         "open_now": open_now,
+        "rating_count": google_place.get("userRatingCount"),
     }
 
 
@@ -195,6 +200,7 @@ def enrich_candidates(
                 parsed = _parse_google_place(google_place)
                 candidate["rating"] = parsed["rating"]
                 candidate["open_now"] = parsed["open_now"]
+                candidate["rating_count"] = parsed["rating_count"]
                 _persist_annotation(db, candidate)
 
     db.commit()

@@ -1,4 +1,4 @@
-from services.places import _matches_need_type
+from services.places import _matches_need_type, _short_category
 
 
 def test_cafe_matches_cafe():
@@ -38,3 +38,25 @@ def test_dessert_accepts_bakery_and_ice_cream_and_dessert_cafes():
 
 def test_dessert_rejects_unrelated_restaurant_category():
     assert _matches_need_type("음식점 > 한식 > 국밥", "dessert") is False
+
+
+# ---------- _short_category ----------
+# Kakao's category_name breadcrumb was already read for filtering but
+# discarded before reaching the client; _short_category is the display-label
+# extraction added so RecommendationOut can surface it.
+
+
+def test_short_category_takes_last_breadcrumb_segment():
+    assert _short_category("음식점 > 카페,디저트 > 카페") == "카페"
+
+
+def test_short_category_strips_surrounding_whitespace():
+    assert _short_category("음식점 > 한식 >  국밥 ") == "국밥"
+
+
+def test_short_category_none_when_missing():
+    assert _short_category(None) is None
+
+
+def test_short_category_none_when_empty_string():
+    assert _short_category("") is None

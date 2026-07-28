@@ -6,6 +6,7 @@ const STAR_COUNT = 5;
 
 type Props = {
   rating: number | null;
+  ratingCount?: number | null;
 };
 
 // Google's Places rating is only available for the nearest few candidates
@@ -13,18 +14,19 @@ type Props = {
 // when Google has rating data for that place at all — `rating: null` is a
 // normal, common case, not an error, so it must say so explicitly rather
 // than silently showing nothing.
-export function RatingStars({ rating }: Props) {
+export function RatingStars({ rating, ratingCount }: Props) {
   if (rating === null) {
     return <Text style={styles.empty}>평점 없음</Text>;
   }
 
   const filled = Math.min(STAR_COUNT, Math.max(0, Math.round(rating)));
   const stars = '★'.repeat(filled) + '☆'.repeat(STAR_COUNT - filled);
+  const value = ratingCount ? `${rating.toFixed(1)} (${ratingCount})` : rating.toFixed(1);
 
   return (
     <View style={styles.row}>
       <Text style={styles.stars}>{stars}</Text>
-      <Text style={styles.value}>{rating.toFixed(1)}</Text>
+      <Text style={styles.value}>{value}</Text>
     </View>
   );
 }

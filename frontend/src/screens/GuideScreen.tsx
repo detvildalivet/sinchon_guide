@@ -12,23 +12,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { LiveMapView } from '../components/LiveMapView';
 import { MapMarkerPin } from '../components/MapMarkerPin';
+import { OpenStatusBadge } from '../components/OpenStatusBadge';
+import { PlaceMeta } from '../components/PlaceMeta';
 import { RatingStars } from '../components/RatingStars';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
-import { ApiError, postRoute, postVisit } from '../api/client';
+import { ApiError, postRoute } from '../api/client';
 import { MapCoordinate, regionCovering } from '../services/locationService';
-import { Need, Recommendation } from '../types/recommendation';
+import { Recommendation } from '../types/recommendation';
 
 type Props = {
   place: Recommendation;
-  need: Need;
   onBack: () => void;
 };
 
 const PIN_SIZE = 20; // must match styles.pin's width/height below
 
-export function GuideScreen({ place, need, onBack }: Props) {
+export function GuideScreen({ place, onBack }: Props) {
   const insets = useSafeAreaInsets();
   const { center: userCoord, loading: locationLoading } = useUserLocation();
 
@@ -58,7 +59,7 @@ export function GuideScreen({ place, need, onBack }: Props) {
       .catch(err => {
         if (active) {
           setRouteError(
-            err instanceof ApiError ? err.message : '경로를 불러오지 못했어요.',
+            err instanceof ApiError ? err.message : '경로를 불러오지 못했습니다.',
           );
         }
       })
@@ -80,14 +81,10 @@ export function GuideScreen({ place, need, onBack }: Props) {
   );
 
   const openInNaverMap = async () => {
-    postVisit({
-      placeId: place.placeId,
-      placeName: place.name,
-      type: need.type,
-      budget: need.budget,
-    }).catch(() => {
-      // Visit logging is best-effort personalization data; never block navigation on it.
-    });
+    // Visit logging happens once, earlier, in App.tsx's openGuide — as soon
+    // as the user commits to being guided here, not gated on this external
+    // handoff — so a user who never taps this button still shows up in
+    // History. Recording it again here would double-count the same visit.
 
     // nmap://route/walk — Naver Map's own walking-directions deep link
     // (https://guide.ncloud-docs.com/docs/maps-url-scheme). Note: this opens
@@ -152,8 +149,13 @@ export function GuideScreen({ place, need, onBack }: Props) {
           { paddingBottom: insets.bottom + theme.spacing.sm },
         ]}>
         <Text style={styles.placeName}>{place.name}</Text>
-        <RatingStars rating={place.rating} />
-        <Text style={styles.reason}>{place.reason}</Text>
+        <RatingStars rating={place.rating} ratingCount={place.ratingCount} />
+        <OpenStatusBadge openNow={place.openNow} />
+        <PlaceMeta
+          distanceMinutes={place.distanceMinutes}
+          category={place.category}
+          address={place.address}
+        />
         {routeLoading ? (
           <ActivityIndicator color={theme.colors.primary} style={styles.action} />
         ) : routeError ? (
@@ -202,11 +204,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.typography.heading,
     fontWeight: '900',
-  },
-  reason: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body,
-    lineHeight: 22,
   },
   errorText: {
     color: theme.colors.danger,

@@ -49,6 +49,27 @@ class Visit(Base):
     user = relationship("User", back_populates="visits")
 
 
+class HistoryClear(Base):
+    """Per-user 'history cleared before this point' marker — one row per user.
+
+    Deliberately a separate table rather than a column on User or Visit:
+    Base.metadata.create_all (see app.py) only creates missing tables, it
+    doesn't ALTER existing ones, so a new column would force deleting/
+    recreating sinchon_guide.db while a new table doesn't.
+
+    Deliberately NOT a delete of Visit rows either: clearing only affects
+    what GET /visits (routers/visits.py) shows the user. The personalization
+    signal in services/recommendation.py is computed from a separate query
+    in routers/recommendations.py that reads Visit directly and never
+    consults this table, so every past visit keeps counting toward
+    recommendations even after the user clears what they see.
+    """
+    __tablename__ = "history_clears"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    cleared_at = Column(DateTime, nullable=False)
+
+
 class PlaceAnnotation(Base):
     """Thin server-side cache/annotation layer keyed by the search provider's
     place_id (Kakao's `id`).

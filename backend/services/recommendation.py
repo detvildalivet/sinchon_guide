@@ -39,10 +39,12 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
 
 
 def _reason(distance_minutes: int) -> str:
-    """Rating is deliberately NOT included here — the frontend renders it as
-    its own always-visible star display (RatingStars), including an explicit
-    "평점 없음" when unrated, rather than folding it into this prose sentence
-    where a missing rating would just silently disappear from the text."""
+    """Rating/open-now/category are deliberately NOT folded into this prose
+    string — the frontend renders them as their own always-visible pieces
+    (RatingStars showing an explicit "평점 없음" when unrated, an
+    OpenStatusBadge, a category/address line) via RecommendationOut's
+    dedicated fields, rather than as a sentence where a missing value would
+    just silently disappear from the text."""
     return f"도보 {distance_minutes}분"
 
 

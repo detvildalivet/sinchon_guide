@@ -83,13 +83,14 @@ def test_missing_location_is_not_plausible():
 # ---------- _parse_google_place ----------
 
 
-def test_parse_full_place_extracts_both_fields():
+def test_parse_full_place_extracts_all_fields():
     google_place = _google_place(
         rating=4.3,
         currentOpeningHours={"openNow": True},
+        userRatingCount=128,
     )
     parsed = _parse_google_place(google_place)
-    assert parsed == {"rating": 4.3, "open_now": True}
+    assert parsed == {"rating": 4.3, "open_now": True, "rating_count": 128}
 
 
 def test_parse_falls_back_to_regular_opening_hours_when_no_current_hours():
@@ -101,7 +102,7 @@ def test_parse_falls_back_to_regular_opening_hours_when_no_current_hours():
 def test_parse_missing_fields_all_become_none():
     google_place = _google_place()
     parsed = _parse_google_place(google_place)
-    assert parsed == {"rating": None, "open_now": None}
+    assert parsed == {"rating": None, "open_now": None, "rating_count": None}
 
 
 # ---------- enrich_candidates (network call monkeypatched) ----------
@@ -125,7 +126,9 @@ class _FakeSession:
 
 def test_enrich_candidates_fills_fields_on_match(monkeypatch):
     monkeypatch.setattr(enrichment, "require_google_key", lambda: "fake-key")
-    matched_place = _google_place(rating=4.5, currentOpeningHours={"openNow": True})
+    matched_place = _google_place(
+        rating=4.5, currentOpeningHours={"openNow": True}, userRatingCount=42
+    )
     monkeypatch.setattr(
         enrichment, "_search_text_for_candidate", lambda client, key, candidate: matched_place
     )
@@ -135,6 +138,7 @@ def test_enrich_candidates_fills_fields_on_match(monkeypatch):
 
     assert candidates[0]["rating"] == 4.5
     assert candidates[0]["open_now"] is True
+    assert candidates[0]["rating_count"] == 42
     # price_level is no longer fetched at all -- enrichment must not touch it.
     assert candidates[0]["price_level"] is None
 
@@ -151,6 +155,7 @@ def test_enrich_candidates_leaves_fields_none_on_no_match(monkeypatch):
     assert candidates[0]["rating"] is None
     assert candidates[0]["price_level"] is None
     assert candidates[0]["open_now"] is None
+    assert "rating_count" not in candidates[0]
 
 
 def test_enrich_candidates_only_touches_top_n(monkeypatch):

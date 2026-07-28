@@ -19,6 +19,16 @@ type Mode = 'login' | 'signup';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Strip non-digits, cap at 8 (YYYYMMDD), re-join with hyphens so the user
+// never has to type '-' themselves and DATE_RE always sees YYYY-MM-DD.
+// Backspace-safe: deleting a digit next to a hyphen just reformats whatever
+// digits remain, rather than getting stuck on the hyphen.
+function formatBirthDate(input: string): string {
+  const digits = input.replace(/\D/g, '').slice(0, 8);
+  const parts = [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8)];
+  return parts.filter(Boolean).join('-');
+}
+
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
   const { login, signup } = useAuth();
@@ -36,20 +46,20 @@ export function AuthScreen() {
 
   const validate = (): string | null => {
     if (!email.includes('@')) {
-      return '올바른 이메일을 입력해주세요.';
+      return '올바른 이메일을 입력하십시오.';
     }
     if (password.length < 8) {
-      return '비밀번호는 8자 이상이어야 해요.';
+      return '비밀번호는 8자 이상이어야 합니다.';
     }
     if (isSignup) {
       if (realName.trim().length === 0) {
-        return '이름을 입력해주세요.';
+        return '이름을 입력하십시오.';
       }
       if (!DATE_RE.test(birthDate)) {
-        return '생년월일을 YYYY-MM-DD 형식으로 입력해주세요.';
+        return '생년월일을 YYYY-MM-DD 형식으로 입력하십시오.';
       }
       if (nickname.trim().length < 2 || nickname.trim().length > 20) {
-        return '닉네임은 2~20자로 입력해주세요.';
+        return '닉네임은 2~20자로 입력하십시오.';
       }
     }
     return null;
@@ -79,7 +89,7 @@ export function AuthScreen() {
         await login(email.trim(), password);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '요청에 실패했어요.');
+      setError(e instanceof Error ? e.message : '요청에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -106,8 +116,8 @@ export function AuthScreen() {
         </Text>
         <Text style={styles.subtitle}>
           {isSignup
-            ? '밥친구 큐와 혼밥 추천을 이용하려면 가입해주세요.'
-            : '다시 오셨네요! 계정으로 로그인해주세요.'}
+            ? '주변 장소 추천과 길안내를 이용하려면 가입하십시오.'
+            : '다시 오셨습니다. 계정으로 로그인하십시오.'}
         </Text>
 
         <View style={styles.form}>
@@ -138,8 +148,10 @@ export function AuthScreen() {
               <Field
                 label="생년월일"
                 value={birthDate}
-                onChangeText={setBirthDate}
+                onChangeText={value => setBirthDate(formatBirthDate(value))}
                 placeholder="YYYY-MM-DD"
+                keyboardType="number-pad"
+                maxLength={10}
                 autoCapitalize="none"
               />
               <Field
@@ -172,8 +184,8 @@ export function AuthScreen() {
             style={({ pressed }) => [styles.toggle, pressed && styles.pressed]}>
             <Text style={styles.toggleText}>
               {isSignup
-                ? '이미 계정이 있나요? 로그인'
-                : '계정이 없나요? 회원가입'}
+                ? '이미 계정이 있으십니까? 로그인'
+                : '계정이 없으십니까? 회원가입'}
             </Text>
           </Pressable>
         </View>

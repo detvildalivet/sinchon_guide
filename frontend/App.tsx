@@ -10,6 +10,8 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { AskScreen } from './src/screens/AskScreen';
 import { GuideScreen } from './src/screens/GuideScreen';
+import { HistoryScreen } from './src/screens/HistoryScreen';
+import { postVisit } from './src/api/client';
 import { Need, Recommendation } from './src/types/recommendation';
 
 function App() {
@@ -41,17 +43,35 @@ function Root() {
   return <AppContent />;
 }
 
-type Route = 'ask' | 'guide';
+type Route = 'ask' | 'guide' | 'history';
 
 function AppContent() {
   const [route, setRoute] = useState<Route>('ask');
   const [picked, setPicked] = useState<Recommendation | null>(null);
   const [need, setNeed] = useState<Need | null>(null);
+  const [hasOpenedHistory, setHasOpenedHistory] = useState(false);
 
   const openGuide = (place: Recommendation, chosenNeed: Need) => {
     setPicked(place);
     setNeed(chosenNeed);
     setRoute('guide');
+
+    // Record the visit as soon as the user commits to being guided to this
+    // place — not gated on the external Naver Maps handoff (GuideScreen's
+    // "네이버 지도로 안내" button), since a user who only ever uses the in-app
+    // map/route should still see the place in their History. Best-effort:
+    // never blocks the route switch above.
+    postVisit({
+      placeId: place.placeId,
+      placeName: place.name,
+      type: chosenNeed.type,
+      budget: chosenNeed.budget,
+    }).catch(() => {});
+  };
+
+  const openHistory = () => {
+    setHasOpenedHistory(true);
+    setRoute('history');
   };
 
   // Only flips the route — picked/need are deliberately left set so
@@ -64,10 +84,13 @@ function AppContent() {
 
   return (
     <View style={[styles.container, layoutStyles.screen]}>
-      <AskScreen onGuide={openGuide} />
+      <AskScreen onGuide={openGuide} onOpenHistory={openHistory} />
       <CrossfadeSwitch visible={route === 'guide'}>
-        {picked && need && (
-          <GuideScreen place={picked} need={need} onBack={backToAsk} />
+        {picked && need && <GuideScreen place={picked} onBack={backToAsk} />}
+      </CrossfadeSwitch>
+      <CrossfadeSwitch visible={route === 'history'}>
+        {hasOpenedHistory && (
+          <HistoryScreen onBack={backToAsk} visible={route === 'history'} />
         )}
       </CrossfadeSwitch>
     </View>

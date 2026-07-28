@@ -87,3 +87,13 @@ def test_features_with_no_linestring_raises_404():
     with pytest.raises(HTTPException) as exc_info:
         tmap_geojson_to_route(only_point)
     assert exc_info.value.status_code == 404
+
+
+def test_non_dict_response_raises_502_instead_of_crashing():
+    # A degenerate request (e.g. an origin/destination pair TMAP can't route,
+    # like two points on opposite continents) can come back as valid JSON
+    # that isn't a FeatureCollection dict at all. Before this guard, `.get()`
+    # on a non-dict raised an unhandled AttributeError -> opaque HTTP 500.
+    with pytest.raises(HTTPException) as exc_info:
+        tmap_geojson_to_route(["unexpected", "list", "shape"])
+    assert exc_info.value.status_code == 502

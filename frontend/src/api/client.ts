@@ -1,7 +1,7 @@
 import { API_BASE } from './config';
 import { clearToken, getCachedToken } from './authStore';
 import { ApiUser } from './types';
-import { Need, Recommendation, RouteResult } from '../types/recommendation';
+import { Need, Recommendation, RouteResult, Visit } from '../types/recommendation';
 import { MapCoordinate } from '../services/locationService';
 
 export class ApiError extends Error {
@@ -146,4 +146,16 @@ export type VisitPayload = {
 
 export function postVisit(payload: VisitPayload): Promise<void> {
   return apiFetch('/visits', { method: 'POST', body: payload });
+}
+
+export function getVisits(): Promise<Visit[]> {
+  return apiFetch('/visits');
+}
+
+// Hides the user's visible history from this point on — it does NOT delete
+// any Visit row server-side, so recommendation personalization (which reads
+// Visit directly, never this cutoff) is unaffected. See
+// backend/models.py's HistoryClear docstring for the full reasoning.
+export function clearVisits(): Promise<void> {
+  return apiFetch('/visits', { method: 'DELETE' });
 }

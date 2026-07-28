@@ -22,6 +22,12 @@ def tmap_geojson_to_route(data: dict) -> RouteOut:
     the full path — no re-encoding needed since NaverMapPathOverlay takes
     `{latitude, longitude}` coords directly.
     """
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Tmap Pedestrian API returned an unexpected response format",
+        )
+
     features = data.get("features", [])
     if not features:
         raise HTTPException(
@@ -104,6 +110,17 @@ def compute_route(
             json=body,
             headers=headers,
         )
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError as exc:
+            # request_external_api only guards the HTTP call itself (connection
+            # error + non-2xx status) — a 2xx response with a body TMAP's own
+            # docs don't predict (e.g. for a degenerate/out-of-service-area
+            # request) still needs to fail cleanly here rather than as a raw,
+            # undetailed 500.
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Tmap Pedestrian API returned an unreadable response",
+            ) from exc
 
     return tmap_geojson_to_route(data)

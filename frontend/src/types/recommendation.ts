@@ -18,11 +18,22 @@ export type Recommendation = {
   lat: number;
   lng: number;
   rating: number | null;
+  ratingCount: number | null;
   priceLevel: number | null;
   distanceMinutes: number;
   openNow: boolean | null;
+  category: string | null;
+  address: string | null;
   score: number;
   reason: string;
+};
+
+// Matches backend schemas.VisitOut — a read-back row for the History screen.
+export type Visit = {
+  placeId: string;
+  placeName: string;
+  type: NeedType;
+  createdAt: string; // ISO datetime
 };
 
 // Matches backend schemas.RouteOut. `coordinates` is the walking-path

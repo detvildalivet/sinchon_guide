@@ -23,6 +23,21 @@ export const DEFAULT_COORDINATE: MapCoordinate = {
   longitude: 126.9368,
 };
 
+/**
+ * Dev-only location override. The Android emulator's default GPS fix is
+ * Google HQ in Mountain View, California — and since that's a *granted*
+ * position (not a denied/unavailable one), requestCurrentLocation() would
+ * otherwise return it as-is and send the whole app (recommendations, routes,
+ * map) to the wrong continent. Pin to Yonsei University's main gate
+ * (southern entrance) instead so local dev/demo always starts in Sinchon.
+ * Flip this to false to use the device/emulator's real GPS again.
+ */
+const USE_MOCK_LOCATION = __DEV__;
+export const MOCK_COORDINATE: MapCoordinate = {
+  latitude: 37.5585,
+  longitude: 126.937,
+};
+
 // ~2.2km across — comfortably frames the backend's 1.2km search radius
 // around a single point without zooming in so tight that neighboring pins
 // would sit off-screen.
@@ -40,6 +55,11 @@ export type LocationResult =
 
 export function requestCurrentLocation(): Promise<LocationResult> {
   return new Promise(resolve => {
+    if (USE_MOCK_LOCATION) {
+      resolve({ status: 'granted', coordinate: MOCK_COORDINATE });
+      return;
+    }
+
     const finish = (result: LocationResult) => resolve(result);
 
     const readPosition = () => {
@@ -97,6 +117,11 @@ export function requestCurrentLocation(): Promise<LocationResult> {
 export function watchPosition(
   onUpdate: (coordinate: MapCoordinate) => void,
 ): () => void {
+  if (USE_MOCK_LOCATION) {
+    onUpdate(MOCK_COORDINATE);
+    return () => {};
+  }
+
   const watchId = Geolocation.watchPosition(
     position => {
       onUpdate({

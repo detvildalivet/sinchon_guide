@@ -60,9 +60,12 @@ class RecommendationOut(BaseModel):
     lat: float
     lng: float
     rating: Optional[float] = None
+    rating_count: Optional[int] = Field(default=None, alias="ratingCount")
     price_level: Optional[int] = Field(default=None, alias="priceLevel")
     distance_minutes: int = Field(alias="distanceMinutes")
     open_now: Optional[bool] = Field(default=None, alias="openNow")
+    category: Optional[str] = None
+    address: Optional[str] = None
     score: float
     reason: str
 
@@ -104,3 +107,14 @@ class VisitCreate(BaseModel):
     type: NeedType
     budget: Budget
     model_config = ConfigDict(populate_by_name=True)
+
+
+class VisitOut(BaseModel):
+    """A read-back row for the History screen — GET /visits."""
+
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+
+    place_id: str = Field(alias="placeId")
+    place_name: str = Field(alias="placeName")
+    type: NeedType
+    created_at: datetime = Field(alias="createdAt")

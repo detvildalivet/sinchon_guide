@@ -100,6 +100,15 @@ def _matches_need_type(category_name: Optional[str], need_type: str) -> bool:
     return True
 
 
+def _short_category(category_name: Optional[str]) -> Optional[str]:
+    """Last segment of Kakao's '대분류 > 중분류 > 소분류' breadcrumb, for display
+    (e.g. "음식점 > 카페,디저트 > 카페" -> "카페"). None if Kakao gave nothing."""
+    if not category_name:
+        return None
+    last = category_name.split(">")[-1].strip()
+    return last or None
+
+
 def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[dict]:
     """Query Kakao Local for candidates around (lat, lng).
 
@@ -108,9 +117,11 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
     always None on returned candidates; the scorer treats that as neutral.
 
     Returns a list of plain dicts: {place_id, name, lat, lng, rating,
-    price_level, open_now} — rating/price_level/open_now are always None
-    (Kakao doesn't provide them), kept in the shape for schema/scorer
-    compatibility.
+    price_level, open_now, category, address} — rating/price_level/open_now
+    are always None (Kakao doesn't provide them), kept in the shape for
+    schema/scorer compatibility. category/address are real values straight
+    from Kakao's response (see _short_category), surfaced to the client via
+    RecommendationOut instead of being discarded as before.
     """
     config = NEED_TYPE_CONFIG[need_type]
     url = KEYWORD_SEARCH_URL if config["keyword"] else CATEGORY_SEARCH_URL
@@ -136,7 +147,8 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
 
     candidates: list[dict] = []
     for place in data.get("documents", []):
-        if not _matches_need_type(place.get("category_name"), need_type):
+        category_name = place.get("category_name")
+        if not _matches_need_type(category_name, need_type):
             continue
         candidate = {
             "place_id": place["id"],
@@ -146,6 +158,12 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
             "rating": None,
             "price_level": None,
             "open_now": None,
+            # Kakao's category_name is a '대분류 > 중분류 > 소분류' breadcrumb
+            # (e.g. "음식점 > 카페,디저트 > 카페") — the last segment is the
+            # closest thing to a user-facing category label. Kept only for
+            # display; _matches_need_type above already used the full string.
+            "category": _short_category(category_name),
+            "address": place.get("road_address_name") or place.get("address_name") or None,
         }
         candidates.append(candidate)
         _upsert_annotation(db, candidate)

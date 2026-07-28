@@ -8,11 +8,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
+import { IconButton } from '../components/IconButton';
+import { OpenStatusBadge } from '../components/OpenStatusBadge';
+import { PlaceMeta } from '../components/PlaceMeta';
 import { RatingStars } from '../components/RatingStars';
+import { TouchableFade } from '../components/TouchableFade';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { ApiError, postRecommendations } from '../api/client';
+import { TYPE_OPTIONS } from '../constants/needTypes';
 import { Budget, Need, NeedType, Recommendation } from '../types/recommendation';
 
 type Step = 'type' | 'result';
@@ -27,18 +32,12 @@ type Step = 'type' | 'result';
 // services/recommendation.py's module docstring for the full story.
 const DEFAULT_BUDGET: Budget = 'mid';
 
-const TYPE_OPTIONS: { value: NeedType; label: string }[] = [
-  { value: 'meal', label: '식사' },
-  { value: 'cafe', label: '카페' },
-  { value: 'drinks', label: '술 한잔' },
-  { value: 'dessert', label: '디저트' },
-];
-
 type Props = {
   onGuide: (place: Recommendation, need: Need) => void;
+  onOpenHistory: () => void;
 };
 
-export function AskScreen({ onGuide }: Props) {
+export function AskScreen({ onGuide, onOpenHistory }: Props) {
   const insets = useSafeAreaInsets();
   const { center } = useUserLocation();
 
@@ -47,7 +46,6 @@ export function AskScreen({ onGuide }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Recommendation[]>([]);
-  const [rerollIndex, setRerollIndex] = useState(0);
 
   const chooseType = async (value: NeedType) => {
     setNeedType(value);
@@ -62,32 +60,44 @@ export function AskScreen({ onGuide }: Props) {
         lng: center.longitude,
       });
       setCandidates(result);
-      setRerollIndex(0);
     } catch (err) {
       setError(
         err instanceof ApiError
           ? err.message
-          : '추천을 불러오지 못했어요. 다시 시도해주세요.',
+          : '추천을 불러오지 못했습니다. 다시 시도해 주십시오.',
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const retry = () => {
+    if (needType) {
+      chooseType(needType);
+    }
+  };
+
   const startOver = () => {
     setNeedType(null);
     setCandidates([]);
-    setRerollIndex(0);
     setError(null);
     setStep('type');
   };
 
-  const reroll = () => {
-    setRerollIndex(index => Math.min(index + 1, candidates.length - 1));
+  const guideTo = (place: Recommendation) => {
+    if (!needType) {
+      return;
+    }
+    onGuide(place, {
+      type: needType,
+      budget: DEFAULT_BUDGET,
+      lat: center.latitude,
+      lng: center.longitude,
+    });
   };
 
-  const current = candidates[rerollIndex] ?? null;
-  const hasMore = rerollIndex + 1 < candidates.length;
+  const hero = candidates[0] ?? null;
+  const rest = candidates.slice(1);
 
   return (
     <ScrollView
@@ -95,9 +105,13 @@ export function AskScreen({ onGuide }: Props) {
         styles.content,
         { paddingTop: insets.top + theme.spacing.xl, paddingBottom: insets.bottom + theme.spacing.xl },
       ]}>
+      <View style={styles.header}>
+        <IconButton label="방문 기록" icon="☰" onPress={onOpenHistory} />
+      </View>
+
       {step === 'type' && (
         <View style={[shellStyles.promptBox, styles.panel]}>
-          <Text style={styles.question}>뭐가 필요하세요?</Text>
+          <Text style={styles.question}>무엇이 필요하십니까?</Text>
           <View style={styles.optionGrid}>
             {TYPE_OPTIONS.map(option => (
               <AppButton
@@ -117,39 +131,52 @@ export function AskScreen({ onGuide }: Props) {
             <ActivityIndicator color={theme.colors.primary} size="large" />
           ) : error ? (
             <>
-              <Text style={styles.question}>앗, 문제가 생겼어요</Text>
+              <Text style={styles.question}>문제가 생겼습니다</Text>
               <Text style={styles.description}>{error}</Text>
-              <AppButton label="처음부터" onPress={startOver} />
-            </>
-          ) : current ? (
-            <>
-              <Text style={styles.eyebrow}>추천 장소</Text>
-              <Text style={styles.placeName}>{current.name}</Text>
-              <RatingStars rating={current.rating} />
-              <Text style={styles.reason}>{current.reason}</Text>
               <View style={styles.actions}>
-                <AppButton
-                  label="이 장소로 안내"
-                  variant="accent"
-                  onPress={() =>
-                    needType &&
-                    onGuide(current, {
-                      type: needType,
-                      budget: DEFAULT_BUDGET,
-                      lat: center.latitude,
-                      lng: center.longitude,
-                    })
-                  }
-                />
-                {hasMore && (
-                  <AppButton label="다른 곳 추천받기" variant="secondary" onPress={reroll} />
-                )}
+                <AppButton label="다시 시도" onPress={retry} />
                 <AppButton label="처음부터" variant="ghost" onPress={startOver} />
               </View>
             </>
+          ) : hero ? (
+            <>
+              <Text style={styles.eyebrow}>추천 장소</Text>
+              <Text style={styles.placeName}>{hero.name}</Text>
+              <RatingStars rating={hero.rating} ratingCount={hero.ratingCount} />
+              <OpenStatusBadge openNow={hero.openNow} />
+              <PlaceMeta distanceMinutes={hero.distanceMinutes} category={hero.category} />
+              <Text style={styles.reason}>{hero.reason}</Text>
+              <View style={styles.actions}>
+                <AppButton label="이 장소로 안내" variant="accent" onPress={() => guideTo(hero)} />
+                <AppButton label="처음부터" variant="ghost" onPress={startOver} />
+              </View>
+
+              {rest.length > 0 && (
+                <View style={styles.candidateList}>
+                  <Text style={styles.candidateListTitle}>다른 후보</Text>
+                  {rest.map(candidate => (
+                    <TouchableFade
+                      key={candidate.placeId}
+                      onPress={() => guideTo(candidate)}
+                      style={styles.candidateRow}>
+                      <View style={styles.candidateMain}>
+                        <Text style={styles.candidateName}>{candidate.name}</Text>
+                        <PlaceMeta
+                          distanceMinutes={candidate.distanceMinutes}
+                          category={candidate.category}
+                        />
+                        <RatingStars rating={candidate.rating} ratingCount={candidate.ratingCount} />
+                      </View>
+                      <OpenStatusBadge openNow={candidate.openNow} />
+                    </TouchableFade>
+                  ))}
+                </View>
+              )}
+            </>
           ) : (
             <>
-              <Text style={styles.question}>근처에 마땅한 곳이 없어요</Text>
+              <Text style={styles.question}>근처에 마땅한 곳이 없습니다</Text>
+              <Text style={styles.description}>다른 종류로 찾아보시겠습니까?</Text>
               <AppButton label="처음부터" onPress={startOver} />
             </>
           )}
@@ -205,5 +232,38 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: theme.spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: theme.spacing.md,
+  },
+  candidateList: {
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  candidateListTitle: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body,
+    fontWeight: '800',
+  },
+  candidateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+  },
+  candidateMain: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  candidateName: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body,
+    fontWeight: '800',
   },
 });
