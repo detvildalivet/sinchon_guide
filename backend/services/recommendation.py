@@ -6,21 +6,19 @@ testable (see backend/tests/test_recommendation.py) the same way the old
 score_menu() was testable before this rebuild.
 
 Ranking policy (settled during brainstorming): CLOSEST-FIRST. Walking
-distance dominates the score; rating, budget-fit, and visit-history
-personalization only matter as near-tie breakers. A place that's currently
-closed always ranks below one that's open.
+distance dominates the score; rating and visit-history personalization only
+matter as near-tie breakers. A place that's currently closed always ranks
+below one that's open.
+
+(Budget/price-level was tried as a third tiebreaker and removed — see
+CLAUDE.md's AskScreen bullet. Live testing showed Google's priceLevel field
+is too sparse and the tiebreaker weight too small, relative to distance and
+rating, to meaningfully change results in practice.)
 """
 import math
 from typing import Optional
 
 WALK_METERS_PER_MINUTE = 80.0
-
-# Need.budget -> the price_level bucket (Google's 0-4 scale) it maps to.
-_BUDGET_BUCKETS = {
-    "cheap": {0, 1},
-    "mid": {2},
-    "splurge": {3, 4},
-}
 
 _CLOSED_PENALTY = 1000.0
 _DEFAULT_RATING = 3.5  # used when a candidate has no rating, so it doesn't get unfairly penalized
@@ -40,30 +38,17 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def _budget_fit(price_level: Optional[int], budget: str) -> float:
-    if price_level is None:
-        return 0.5  # unknown price — mild neutral score, neither rewarded nor punished
-    bucket = _BUDGET_BUCKETS[budget]
-    if price_level in bucket:
-        return 2.0
-    if min(abs(price_level - b) for b in bucket) == 1:
-        return 1.0  # one level outside the requested bucket
-    return 0.0
-
-
-def _reason(distance_minutes: int, rating: Optional[float], budget_ok: bool) -> str:
-    parts = [f"도보 {distance_minutes}분"]
-    if rating is not None:
-        parts.append(f"평점 {rating:.1f}")
-    if budget_ok:
-        parts.append("예산 맞음")
-    return " · ".join(parts)
+def _reason(distance_minutes: int) -> str:
+    """Rating is deliberately NOT included here — the frontend renders it as
+    its own always-visible star display (RatingStars), including an explicit
+    "평점 없음" when unrated, rather than folding it into this prose sentence
+    where a missing rating would just silently disappear from the text."""
+    return f"도보 {distance_minutes}분"
 
 
 def score_candidates(
     candidates: list[dict],
     need_type: str,
-    budget: str,
     user_lat: float,
     user_lng: float,
     visit_counts_by_place: Optional[dict[str, int]] = None,
@@ -86,7 +71,6 @@ def score_candidates(
 
         rating = candidate.get("rating")
         rating_bonus = rating if rating is not None else _DEFAULT_RATING
-        budget_fit = _budget_fit(candidate.get("price_level"), budget)
         open_now = candidate.get("open_now")
         closed_penalty = _CLOSED_PENALTY if open_now is False else 0.0
 
@@ -96,16 +80,14 @@ def score_candidates(
         personalization = past_visits * _PERSONALIZATION_WEIGHT
 
         base = -(distance_minutes * 10.0)
-        score = round(
-            base + rating_bonus + budget_fit + personalization - closed_penalty, 2
-        )
+        score = round(base + rating_bonus + personalization - closed_penalty, 2)
 
         scored.append(
             {
                 **candidate,
                 "distance_minutes": distance_minutes,
                 "score": score,
-                "reason": _reason(distance_minutes, rating, budget_fit >= 2.0),
+                "reason": _reason(distance_minutes),
             }
         )
 

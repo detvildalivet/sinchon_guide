@@ -6,6 +6,7 @@ from auth import get_current_user
 from database import get_db
 from models import User, Visit
 from schemas import NeedIn, RecommendationOut
+from services.enrichment import enrich_candidates
 from services.places import search_nearby
 from services.recommendation import score_candidates
 
@@ -20,13 +21,21 @@ def recommend(
 ):
     """Ask -> categorize -> recommend, stage 3.
 
-    Queries Kakao Local for candidates near the user, then ranks them
-    closest-first with visit history as a tiebreaker (rating/budget-fit are
-    dormant — Kakao has no rating/price data; see services/places.py and
-    services/recommendation.py). See services/recommendation.py for the
-    scoring policy.
+    Queries Kakao Local for candidates near the user, enriches the nearest
+    few with real rating/open-now data from Google Places (Kakao has none
+    of that — see services/places.py), then ranks everything closest-first
+    with rating/open-now/visit-history as tiebreakers. See
+    services/enrichment.py for the enrichment pass and
+    services/recommendation.py for the scoring policy. Candidates beyond
+    the enrichment cutoff keep None fields and are ranked on distance +
+    visit history alone, same as before enrichment existed.
+
+    need.budget is accepted but no longer used for ranking — see
+    services/recommendation.py's module docstring for why (budget-fit was
+    tried and dropped; price-level data was too sparse to matter).
     """
     candidates = search_nearby(db, need.lat, need.lng, need.type)
+    enrich_candidates(db, candidates)
 
     visit_rows = (
         db.query(Visit.place_id, func.count(Visit.id))
@@ -39,7 +48,6 @@ def recommend(
     ranked = score_candidates(
         candidates,
         need_type=need.type,
-        budget=need.budget,
         user_lat=need.lat,
         user_lng=need.lng,
         visit_counts_by_place=visit_counts_by_place,

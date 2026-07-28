@@ -41,10 +41,9 @@ export function LiveMapView({
         {...mapProps}>
         {children}
       </NaverMapView>
-      <View
-        pointerEvents="none"
-        style={[styles.veil, solo ? styles.veilSolo : styles.veilTogether]}
-      />
+      {!solo && (
+        <View pointerEvents="none" style={[styles.veil, styles.veilTogether]} />
+      )}
     </View>
   );
 }
@@ -61,8 +60,5 @@ const styles = StyleSheet.create({
   },
   veilTogether: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  veilSolo: {
-    backgroundColor: 'rgba(8, 23, 65, 0.18)',
   },
 });

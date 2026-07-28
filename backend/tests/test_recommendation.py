@@ -1,8 +1,10 @@
 """Tests for the pure recommendation scorer (no DB, no network).
 
 Ranking policy under test (settled during brainstorming): closest-first,
-with rating / budget-fit / visit-history as near-tie breakers, and an
-open-now place always outranking a closed one regardless of distance.
+with rating / visit-history as near-tie breakers, and an open-now place
+always outranking a closed one regardless of distance. (Budget-fit was
+tried as a third tiebreaker and removed — see the module docstring in
+services/recommendation.py for why.)
 """
 import sys
 from pathlib import Path
@@ -14,14 +16,14 @@ from services.recommendation import haversine_meters, score_candidates
 USER_LAT, USER_LNG = 37.5596, 126.9368  # Sinchon station, roughly
 
 
-def _place(place_id, lat, lng, rating=4.0, price_level=1, open_now=True):
+def _place(place_id, lat, lng, rating=4.0, open_now=True):
     return {
         "place_id": place_id,
         "name": place_id,
         "lat": lat,
         "lng": lng,
         "rating": rating,
-        "price_level": price_level,
+        "price_level": None,
         "open_now": open_now,
     }
 
@@ -29,7 +31,7 @@ def _place(place_id, lat, lng, rating=4.0, price_level=1, open_now=True):
 def test_closest_first_dominates_ranking():
     near = _place("near", USER_LAT + 0.001, USER_LNG, rating=3.0)  # ~110m
     far = _place("far", USER_LAT + 0.02, USER_LNG, rating=5.0)  # ~2.2km, higher rating
-    ranked = score_candidates([far, near], "meal", "cheap", USER_LAT, USER_LNG)
+    ranked = score_candidates([far, near], "meal", USER_LAT, USER_LNG)
     assert [c["place_id"] for c in ranked] == ["near", "far"]
 
 
@@ -41,31 +43,18 @@ def test_open_now_always_beats_closed_regardless_of_distance():
         "open", USER_LAT + 0.01, USER_LNG, rating=3.0, open_now=True
     )
     ranked = score_candidates(
-        [closer_but_closed, farther_but_open], "meal", "cheap", USER_LAT, USER_LNG
+        [closer_but_closed, farther_but_open], "meal", USER_LAT, USER_LNG
     )
     assert ranked[0]["place_id"] == "open"
 
 
-def test_budget_fit_breaks_near_ties():
-    # Same distance, same rating -> budget match should win.
-    cheap_fit = _place("cheap_fit", USER_LAT + 0.001, USER_LNG, rating=4.0, price_level=1)
-    expensive_mismatch = _place(
-        "expensive", USER_LAT + 0.001, USER_LNG, rating=4.0, price_level=4
-    )
-    ranked = score_candidates(
-        [expensive_mismatch, cheap_fit], "meal", "cheap", USER_LAT, USER_LNG
-    )
-    assert ranked[0]["place_id"] == "cheap_fit"
-
-
 def test_visit_history_breaks_near_ties_but_not_distance():
-    # Same distance, same rating/budget -> the place visited before should edge ahead.
+    # Same distance, same rating -> the place visited before should edge ahead.
     visited = _place("visited", USER_LAT + 0.001, USER_LNG)
     not_visited = _place("not_visited", USER_LAT + 0.001, USER_LNG)
     ranked = score_candidates(
         [not_visited, visited],
         "meal",
-        "cheap",
         USER_LAT,
         USER_LNG,
         visit_counts_by_place={"visited": 3},
@@ -79,7 +68,6 @@ def test_visit_history_breaks_near_ties_but_not_distance():
     ranked2 = score_candidates(
         [far_but_visited, near_not_visited],
         "meal",
-        "cheap",
         USER_LAT,
         USER_LNG,
         visit_counts_by_place={"far_visited": 4},
@@ -90,7 +78,7 @@ def test_visit_history_breaks_near_ties_but_not_distance():
 def test_missing_rating_uses_neutral_default_not_a_penalty():
     no_rating = _place("no_rating", USER_LAT, USER_LNG, rating=None)
     low_rating = _place("low_rating", USER_LAT, USER_LNG, rating=1.0)
-    ranked = score_candidates([low_rating, no_rating], "meal", "cheap", USER_LAT, USER_LNG)
+    ranked = score_candidates([low_rating, no_rating], "meal", USER_LAT, USER_LNG)
     assert ranked[0]["place_id"] == "no_rating"
 
 

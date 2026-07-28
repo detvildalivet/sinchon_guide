@@ -1,4 +1,5 @@
-"""Shared error surfacing for external API calls (Kakao Local, TMAP routes).
+"""Shared error surfacing for external API calls (Kakao Local, TMAP routes,
+Google Places enrichment).
 
 Without this, any upstream rejection (bad/restricted key, billing not
 enabled, quota exceeded, malformed request) bubbles up as an unhandled
@@ -39,6 +40,23 @@ def require_tmap_key() -> str:
                 "The app registered for this key must have the 보행자 "
                 "경로안내 (Pedestrian) product subscribed, not just 대중교통 "
                 "(Transit)."
+            ),
+        )
+    return key
+
+
+def require_google_key() -> str:
+    key = os.environ.get("GOOGLE_PLACES_API_KEY")
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Server is not configured with GOOGLE_PLACES_API_KEY — "
+                "set it in the backend environment (see CLAUDE.md). The key "
+                "must have Places API (New) enabled and must NOT be "
+                "IP-restricted while the backend runs on a dynamic IP "
+                "(an IP-restricted key is what broke the old Google "
+                "integration — see CLAUDE.md's googleghost.png note)."
             ),
         )
     return key

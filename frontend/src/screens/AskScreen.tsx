@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
+import { RatingStars } from '../components/RatingStars';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -16,12 +17,14 @@ import { Budget, Need, NeedType, Recommendation } from '../types/recommendation'
 
 type Step = 'type' | 'result';
 
-// No Korean place-search provider (Kakao Local, Naver Local Search) exposes
-// price-level/menu data via public API the way Google Places did, so budget
-// no longer affects ranking (services/recommendation.py's _budget_fit is a
-// no-op once price_level is always null) — AskScreen stopped asking for it.
-// `Need.budget` stays in the wire contract (still recorded on Visit) with a
-// constant neutral value, in case a future data source revives it.
+// No Korean place-search provider gives budget a real chance to matter:
+// Kakao has no price data at all, and Google Places' priceLevel (fetched
+// briefly by services/enrichment.py) turned out too sparse in practice —
+// live testing showed changing budget almost never changed the
+// recommendation. `Need.budget` stays in the wire contract (still recorded
+// on Visit, forward-compatible if a data source ever revives it) with a
+// constant neutral value — only the UI question is gone. See
+// services/recommendation.py's module docstring for the full story.
 const DEFAULT_BUDGET: Budget = 'mid';
 
 const TYPE_OPTIONS: { value: NeedType; label: string }[] = [
@@ -122,6 +125,7 @@ export function AskScreen({ onGuide }: Props) {
             <>
               <Text style={styles.eyebrow}>추천 장소</Text>
               <Text style={styles.placeName}>{current.name}</Text>
+              <RatingStars rating={current.rating} />
               <Text style={styles.reason}>{current.reason}</Text>
               <View style={styles.actions}>
                 <AppButton
@@ -138,7 +142,7 @@ export function AskScreen({ onGuide }: Props) {
                   }
                 />
                 {hasMore && (
-                  <AppButton label="다시 보기" variant="secondary" onPress={reroll} />
+                  <AppButton label="다른 곳 추천받기" variant="secondary" onPress={reroll} />
                 )}
                 <AppButton label="처음부터" variant="ghost" onPress={startOver} />
               </View>

@@ -3,7 +3,7 @@ import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import {
   SafeAreaProvider,
 } from 'react-native-safe-area-context';
-import { ScreenTransition } from './src/components/ScreenTransition';
+import { CrossfadeSwitch } from './src/components/CrossfadeSwitch';
 import { layoutStyles } from './src/design/layout';
 import { theme } from './src/design/theme';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
@@ -54,22 +54,22 @@ function AppContent() {
     setRoute('guide');
   };
 
+  // Only flips the route — picked/need are deliberately left set so
+  // GuideScreen stays mounted (just hidden) instead of being torn down.
+  // AskScreen is always mounted (see below), so "다시 추천받기" naturally
+  // lands back on whatever AskScreen was showing, not a fresh restart.
   const backToAsk = () => {
-    setPicked(null);
-    setNeed(null);
     setRoute('ask');
-  };
-
-  const renderScreen = () => {
-    if (route === 'guide' && picked !== null && need !== null) {
-      return <GuideScreen place={picked} need={need} onBack={backToAsk} />;
-    }
-    return <AskScreen onGuide={openGuide} />;
   };
 
   return (
     <View style={[styles.container, layoutStyles.screen]}>
-      <ScreenTransition transitionKey={route}>{renderScreen()}</ScreenTransition>
+      <AskScreen onGuide={openGuide} />
+      <CrossfadeSwitch visible={route === 'guide'}>
+        {picked && need && (
+          <GuideScreen place={picked} need={need} onBack={backToAsk} />
+        )}
+      </CrossfadeSwitch>
     </View>
   );
 }

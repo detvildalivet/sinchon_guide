@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { LiveMapView } from '../components/LiveMapView';
 import { MapMarkerPin } from '../components/MapMarkerPin';
+import { RatingStars } from '../components/RatingStars';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -151,6 +152,7 @@ export function GuideScreen({ place, need, onBack }: Props) {
           { paddingBottom: insets.bottom + theme.spacing.sm },
         ]}>
         <Text style={styles.placeName}>{place.name}</Text>
+        <RatingStars rating={place.rating} />
         <Text style={styles.reason}>{place.reason}</Text>
         {routeLoading ? (
           <ActivityIndicator color={theme.colors.primary} style={styles.action} />
