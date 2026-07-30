@@ -100,7 +100,13 @@ export function HistoryScreen({ onBack, visible }: Props) {
   };
 
   const formatDate = (iso: string) => {
-    const date = new Date(iso);
+    // The backend serializes naive UTC datetimes with no `Z`/offset suffix
+    // (see backend/models.py). An offset-less ISO string is parsed as LOCAL
+    // time by `Date`, not UTC — on a KST device that shifts any visit made
+    // between 00:00-09:00 KST back a calendar day. Treat an offset-less
+    // string as UTC explicitly.
+    const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso);
+    const date = new Date(hasOffset ? iso : `${iso}Z`);
     if (Number.isNaN(date.getTime())) {
       return iso;
     }

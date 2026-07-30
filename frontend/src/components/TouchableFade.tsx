@@ -6,6 +6,8 @@ type Props = PressableProps & {
   style?: StyleProp<ViewStyle>;
 };
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function TouchableFade({ children, activeOpacity = 0.7, style, ...rest }: PropsWithChildren<Props>) {
   const anim = useRef(new Animated.Value(1)).current;
 
@@ -18,19 +20,19 @@ export function TouchableFade({ children, activeOpacity = 0.7, style, ...rest }:
   };
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...rest}
       onPressIn={(e) => {
         fadeTo(activeOpacity, 100);
-        rest.onPressIn && rest.onPressIn(e as any);
+        rest.onPressIn && rest.onPressIn(e);
       }}
       onPressOut={(e) => {
         fadeTo(1, 160);
-        rest.onPressOut && rest.onPressOut(e as any);
+        rest.onPressOut && rest.onPressOut(e);
       }}
-      style={typeof style === 'function' ? style as any : style}
+      style={[style, { opacity: anim }]}
     >
-      <Animated.View style={{ opacity: anim }}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   );
 }

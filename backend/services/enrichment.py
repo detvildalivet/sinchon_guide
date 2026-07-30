@@ -136,7 +136,12 @@ def _search_text_for_candidate(
     if not response.is_success:
         return None
 
-    places = response.json().get("places", [])
+    try:
+        places = response.json().get("places", [])
+    except ValueError:
+        # A 2xx status with a non-JSON body (captive portal, proxy HTML error
+        # page) — treat exactly like no-result, per this function's contract.
+        return None
     if not places:
         return None
 
@@ -194,7 +199,14 @@ def enrich_candidates(
                 for candidate in to_enrich
             }
             for future, candidate in future_to_candidate.items():
-                google_place = future.result()
+                try:
+                    google_place = future.result()
+                except Exception:
+                    # _search_text_for_candidate is documented never to raise,
+                    # but a worker fault here must still degrade this one
+                    # candidate to un-enriched rather than failing the whole
+                    # /recommendations call.
+                    continue
                 if google_place is None:
                     continue
                 parsed = _parse_google_place(google_place)

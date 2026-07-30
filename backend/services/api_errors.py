@@ -99,9 +99,21 @@ def request_external_api(
         return response
 
     try:
-        detail = response.json().get("error", {}).get("message", response.text)
+        payload = response.json()
     except ValueError:
-        detail = response.text
+        payload = None
+
+    # Provider error shapes differ: Google/TMAP nest under {"error": {...}},
+    # Kakao returns {"errorType": ..., "message": ...} at the top level. A
+    # valid-JSON-but-non-dict body (array, bare string/number) must fall back
+    # to raw text rather than raising out of this error-formatting path.
+    detail = response.text
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict) and isinstance(error.get("message"), str):
+            detail = error["message"]
+        elif isinstance(payload.get("message"), str):
+            detail = payload["message"]
     raise HTTPException(
         status_code=status.HTTP_502_BAD_GATEWAY,
         detail=f"{api_name} error ({response.status_code}): {detail}",

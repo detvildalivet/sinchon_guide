@@ -97,3 +97,57 @@ def test_non_dict_response_raises_502_instead_of_crashing():
     with pytest.raises(HTTPException) as exc_info:
         tmap_geojson_to_route(["unexpected", "list", "shape"])
     assert exc_info.value.status_code == 502
+
+
+def test_three_element_position_does_not_crash():
+    # A GeoJSON position may legally carry an elevation as a 3rd element.
+    # Unpacking `for lng, lat in coordinates` used to raise
+    # "too many values to unpack" on this -- indexing must handle it instead.
+    geojson_with_elevation = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [126.9368, 37.5596]},
+                "properties": {"totalDistance": 100, "totalTime": 60},
+            },
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [126.9368, 37.5596, 0.0],
+                        [126.9370, 37.5598, 1.5],
+                    ],
+                },
+                "properties": {"index": 0},
+            },
+        ],
+    }
+    route = tmap_geojson_to_route(geojson_with_elevation)
+    assert [(c.latitude, c.longitude) for c in route.coordinates] == [
+        (37.5596, 126.9368),
+        (37.5598, 126.9370),
+    ]
+
+
+def test_malformed_feature_is_skipped_instead_of_crashing():
+    # A feature that isn't a dict (or has non-dict geometry/properties) must
+    # be skipped rather than raising AttributeError on `.get()`.
+    malformed = {
+        "type": "FeatureCollection",
+        "features": [
+            "not-a-feature-dict",
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[126.9368, 37.5596], [126.9370, 37.5598]],
+                },
+                "properties": {"totalDistance": 200, "totalTime": 120},
+            },
+        ],
+    }
+    route = tmap_geojson_to_route(malformed)
+    assert route.distance_meters == 200
+    assert len(route.coordinates) == 2

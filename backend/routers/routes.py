@@ -40,8 +40,10 @@ def tmap_geojson_to_route(data: dict) -> RouteOut:
     coordinates: list[LatLng] = []
 
     for feature in features:
-        geometry = feature.get("geometry", {})
-        properties = feature.get("properties", {})
+        if not isinstance(feature, dict):
+            continue
+        geometry = feature.get("geometry") or {}
+        properties = feature.get("properties") or {}
 
         if "totalDistance" in properties:
             total_distance_meters = properties["totalDistance"]
@@ -49,8 +51,14 @@ def tmap_geojson_to_route(data: dict) -> RouteOut:
             total_time_seconds = properties["totalTime"]
 
         if geometry.get("type") == "LineString":
-            for lng, lat in geometry.get("coordinates", []):
-                coordinates.append(LatLng(latitude=lat, longitude=lng))
+            for position in geometry.get("coordinates") or []:
+                # A GeoJSON position is legally [lng, lat] or
+                # [lng, lat, elevation] — index instead of unpacking so a
+                # 3-element position doesn't raise, and skip anything
+                # malformed instead of crashing the whole request.
+                if not isinstance(position, (list, tuple)) or len(position) < 2:
+                    continue
+                coordinates.append(LatLng(latitude=position[1], longitude=position[0]))
 
     if not coordinates:
         raise HTTPException(

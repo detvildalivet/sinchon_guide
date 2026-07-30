@@ -42,6 +42,9 @@ export function GuideScreen({ place, onBack, onGoHome }: Props) {
   const [routeCoords, setRouteCoords] = useState<MapCoordinate[]>([]);
   const [routeLoading, setRouteLoading] = useState(true);
   const [routeError, setRouteError] = useState<string | null>(null);
+  // Camera anchor for `region` below — frozen per destination so watchPosition
+  // ticks don't fight the user's pan/zoom (see the memo's comment).
+  const [anchorCoord, setAnchorCoord] = useState<MapCoordinate | null>(null);
 
   useEffect(() => {
     if (locationLoading) {
@@ -50,6 +53,14 @@ export function GuideScreen({ place, onBack, onGoHome }: Props) {
     let active = true;
     setRouteLoading(true);
     setRouteError(null);
+    // Clear any route drawn for a previous destination — GuideScreen stays
+    // mounted across trips (see App.tsx), so without this a failed fetch
+    // here would leave the old polyline pointing at the wrong place.
+    setRouteCoords([]);
+    // Same trigger (destination change / initial fix) also re-anchors the
+    // camera — see the `region` memo below for why this can't just read
+    // `userCoord` on every render.
+    setAnchorCoord(userCoord);
 
     postRoute(userCoord, placeCoord)
       .then(result => {
@@ -76,9 +87,19 @@ export function GuideScreen({ place, onBack, onGoHome }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationLoading, placeCoord.latitude, placeCoord.longitude]);
 
+  // `region` is NOT derived straight from `userCoord`: watchPosition
+  // (distanceFilter: 5) produces a new coordinate object every ~5m of
+  // walking, and LiveMapView passes `region` to NaverMapView as a controlled
+  // prop — recomputing it on every tick would re-frame the camera and fight
+  // the user's own pan/zoom on the one screen they're actively looking at
+  // while walking. `anchorCoord` (set above, once per destination) is used
+  // instead, and deliberately kept out of this memo's deps for the same
+  // reason the effect above omits it. The live dot still tracks via
+  // `userCoord` passed to LiveMapView below.
   const region = useMemo(
-    () => regionCovering(userCoord, placeCoord),
-    [userCoord, placeCoord],
+    () => regionCovering(anchorCoord ?? userCoord, placeCoord),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [anchorCoord, placeCoord],
   );
 
   const openInNaverMap = async () => {
@@ -101,17 +122,25 @@ export function GuideScreen({ place, onBack, onGoHome }: Props) {
       appname: 'com.sinchonguide',
     });
     const naverUrl = `nmap://route/walk?${params.toString()}`;
-    const canOpenNaverMap = await Linking.canOpenURL('nmap://');
 
-    if (canOpenNaverMap) {
-      await Linking.openURL(naverUrl);
-      return;
+    try {
+      const canOpenNaverMap = await Linking.canOpenURL('nmap://');
+
+      if (canOpenNaverMap) {
+        await Linking.openURL(naverUrl);
+        return;
+      }
+
+      // Not installed — send to the Play Store listing instead of failing silently.
+      await Linking.openURL(
+        'https://play.google.com/store/apps/details?id=com.nhn.android.nmap',
+      );
+    } catch {
+      // Linking.openURL rejects when no activity can handle the intent
+      // (e.g. emulator with no Play Store and Naver Map not installed) —
+      // surface it instead of leaving the button looking like it did nothing.
+      setRouteError('네이버 지도를 열지 못했습니다.');
     }
-
-    // Not installed — send to the Play Store listing instead of failing silently.
-    await Linking.openURL(
-      'https://play.google.com/store/apps/details?id=com.nhn.android.nmap',
-    );
   };
 
   return (
