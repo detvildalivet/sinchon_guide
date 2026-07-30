@@ -14,7 +14,7 @@ import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError, clearVisits, getVisits } from '../api/client';
-import { NEED_TYPE_LABELS } from '../constants/needTypes';
+import { needTypeLabel } from '../constants/needTypes';
 import { Visit } from '../types/recommendation';
 
 type Props = {
@@ -169,7 +169,7 @@ export function HistoryScreen({ onBack, visible }: Props) {
                   <View style={styles.rowMain}>
                     <Text style={styles.placeName}>{visit.placeName}</Text>
                     <Text style={styles.rowMeta}>
-                      {NEED_TYPE_LABELS[visit.type]} · {formatDate(visit.createdAt)}
+                      {needTypeLabel(visit.type)} · {formatDate(visit.createdAt)}
                     </Text>
                   </View>
                 </View>

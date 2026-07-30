@@ -1,11 +1,7 @@
 from datetime import date, datetime
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
-NeedType = Literal["meal", "cafe", "drinks", "dessert"]
-Budget = Literal["cheap", "mid", "splurge"]
-
 
 # ---------- Users ----------
 
@@ -41,15 +37,34 @@ class Token(BaseModel):
 # ---------- Recommendations ----------
 
 class NeedIn(BaseModel):
-    """The categorized answer to 'what do you need?' — the LLM-ready contract.
+    """The categorized answer to 'what do you need?'.
 
-    A future free-text input stage just needs to emit this same shape;
-    everything downstream (Places lookup, scoring) is unaffected.
+    The free-text input stage (POST /classify, services/classify.py) emits
+    exactly this shape — {type, lat, lng} — after classifying the user's
+    sentence. `type` is an open string, not a closed enum: it's either one
+    of the 4 curated categories (meal/cafe/drinks/dessert — Kakao's FD6/CE7
+    dedicated category-code search in services/places.py) or an arbitrary
+    Korean place-type keyword Claude extracted (e.g. "당구장"), routed to a
+    plain Kakao keyword search instead. Everything downstream (Places
+    lookup, scoring) treats it as an opaque string either way.
     """
-    type: NeedType
-    budget: Budget
+    type: str
     lat: float
     lng: float
+
+
+class ClassifyIn(BaseModel):
+    """Free-text input to POST /classify — the raw sentence AskScreen's
+    text field collects, before it's been categorized."""
+    text: str = Field(min_length=1, max_length=200)
+
+
+class ClassifyOut(BaseModel):
+    """type is None when Claude couldn't tell what kind of place the user
+    wants (see services/classify.py) — AskScreen shows an inline retry
+    prompt in that case rather than guessing. There is no button-grid
+    fallback; the text step is the only way in."""
+    type: Optional[str] = None
 
 
 class RecommendationOut(BaseModel):
@@ -61,7 +76,6 @@ class RecommendationOut(BaseModel):
     lng: float
     rating: Optional[float] = None
     rating_count: Optional[int] = Field(default=None, alias="ratingCount")
-    price_level: Optional[int] = Field(default=None, alias="priceLevel")
     distance_minutes: int = Field(alias="distanceMinutes")
     open_now: Optional[bool] = Field(default=None, alias="openNow")
     category: Optional[str] = None
@@ -104,8 +118,7 @@ class RouteOut(BaseModel):
 class VisitCreate(BaseModel):
     place_id: str = Field(alias="placeId")
     place_name: str = Field(alias="placeName")
-    type: NeedType
-    budget: Budget
+    type: str
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -116,5 +129,5 @@ class VisitOut(BaseModel):
 
     place_id: str = Field(alias="placeId")
     place_name: str = Field(alias="placeName")
-    type: NeedType
+    type: str
     created_at: datetime = Field(alias="createdAt")

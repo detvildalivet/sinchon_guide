@@ -100,7 +100,6 @@ def test_upsert_annotation_does_not_touch_existing_rating():
         "lat": 37.5,
         "lng": 126.9,
         "rating": None,  # what search_nearby always produces
-        "price_level": None,
     }
     _upsert_annotation(db, candidate)
     db.commit()
@@ -120,7 +119,6 @@ def test_upsert_annotation_creates_row_with_no_rating_set():
         "lat": 37.5,
         "lng": 126.9,
         "rating": None,
-        "price_level": None,
     }
     _upsert_annotation(db, candidate)
     db.commit()

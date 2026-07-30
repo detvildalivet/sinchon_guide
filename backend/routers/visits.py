@@ -32,7 +32,6 @@ def create_visit(
         place_id=payload.place_id,
         place_name=payload.place_name,
         type=payload.type,
-        budget=payload.budget,
     )
     db.add(visit)
     db.commit()

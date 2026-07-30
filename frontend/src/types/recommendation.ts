@@ -1,14 +1,23 @@
 // The categorized "what do you need?" contract (backend schemas.NeedIn).
-// A future free-text/LLM input stage just needs to emit this same shape —
-// everything downstream (Places lookup, scoring, this file) is unaffected.
-export type NeedType = 'meal' | 'cafe' | 'drinks' | 'dessert';
-export type Budget = 'cheap' | 'mid' | 'splurge';
-
+// AskScreen has no buttons — it's a pure text input, so `type` is an open
+// string produced by POST /classify (src/api/client.ts's
+// postClassifyNeed): either one of the 4 curated categories
+// (meal/cafe/drinks/dessert — Kakao's dedicated category-code search on
+// the backend) or an arbitrary Korean place-type keyword Claude extracted
+// (e.g. "당구장"), routed to a plain Kakao keyword search instead.
+// Everything downstream (Places lookup, scoring, this file) treats it as
+// an opaque string either way.
 export type Need = {
-  type: NeedType;
-  budget: Budget;
+  type: string;
   lat: number;
   lng: number;
+};
+
+// Matches backend schemas.ClassifyOut. type is null when Claude couldn't
+// tell what kind of place the user wants — AskScreen shows an inline retry
+// prompt in that case; there is no button-grid fallback.
+export type ClassifyResult = {
+  type: string | null;
 };
 
 // Matches backend schemas.RecommendationOut (camelCase aliases).
@@ -19,7 +28,6 @@ export type Recommendation = {
   lng: number;
   rating: number | null;
   ratingCount: number | null;
-  priceLevel: number | null;
   distanceMinutes: number;
   openNow: boolean | null;
   category: string | null;
@@ -32,7 +40,7 @@ export type Recommendation = {
 export type Visit = {
   placeId: string;
   placeName: string;
-  type: NeedType;
+  type: string;
   createdAt: string; // ISO datetime
 };
 

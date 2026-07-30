@@ -1,7 +1,7 @@
 import { API_BASE } from './config';
 import { clearToken, getCachedToken } from './authStore';
 import { ApiUser } from './types';
-import { Need, Recommendation, RouteResult, Visit } from '../types/recommendation';
+import { ClassifyResult, Need, Recommendation, RouteResult, Visit } from '../types/recommendation';
 import { MapCoordinate } from '../services/locationService';
 
 export class ApiError extends Error {
@@ -114,6 +114,12 @@ export function getMe(): Promise<ApiUser> {
   return apiFetch('/users/me');
 }
 
+// ---------- Classify ----------
+
+export function postClassifyNeed(text: string): Promise<ClassifyResult> {
+  return apiFetch('/classify', { method: 'POST', body: { text } });
+}
+
 // ---------- Recommendations ----------
 
 export function postRecommendations(need: Need): Promise<Recommendation[]> {
@@ -141,7 +147,6 @@ export type VisitPayload = {
   placeId: string;
   placeName: string;
   type: Need['type'];
-  budget: Need['budget'];
 };
 
 export function postVisit(payload: VisitPayload): Promise<void> {

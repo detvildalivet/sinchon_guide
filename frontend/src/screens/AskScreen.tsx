@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,21 +17,10 @@ import { TouchableFade } from '../components/TouchableFade';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useUserLocation } from '../hooks/useUserLocation';
-import { ApiError, postRecommendations } from '../api/client';
-import { TYPE_OPTIONS } from '../constants/needTypes';
-import { Budget, Need, NeedType, Recommendation } from '../types/recommendation';
+import { ApiError, postClassifyNeed, postRecommendations } from '../api/client';
+import { Need, Recommendation } from '../types/recommendation';
 
 type Step = 'type' | 'result';
-
-// No Korean place-search provider gives budget a real chance to matter:
-// Kakao has no price data at all, and Google Places' priceLevel (fetched
-// briefly by services/enrichment.py) turned out too sparse in practice —
-// live testing showed changing budget almost never changed the
-// recommendation. `Need.budget` stays in the wire contract (still recorded
-// on Visit, forward-compatible if a data source ever revives it) with a
-// constant neutral value — only the UI question is gone. See
-// services/recommendation.py's module docstring for the full story.
-const DEFAULT_BUDGET: Budget = 'mid';
 
 type Props = {
   onGuide: (place: Recommendation, need: Need) => void;
@@ -50,10 +40,27 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
   const scrollRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState<Step>('type');
-  const [needType, setNeedType] = useState<NeedType | null>(null);
+  // The categorized answer — either one of the 4 curated identifiers
+  // (meal/cafe/drinks/dessert) or an open Korean keyword the classifier
+  // extracted (e.g. "당구장"). No longer a closed enum: AskScreen has no
+  // buttons at all, so this is whatever POST /classify returned.
+  const [needType, setNeedType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Recommendation[]>([]);
+  // Free-text 'type' step state. classifying covers only the brief window
+  // between submitting text and either transitioning to 'result' (via
+  // chooseType, on a successful classification) or showing typeError —
+  // success never leaves this screen showing a spinner for long, since
+  // chooseType flips `step` immediately.
+  const [freeText, setFreeText] = useState('');
+  const [classifying, setClassifying] = useState(false);
+  // Shown inline on the 'type' step when classification returns null
+  // (Claude couldn't tell what kind of place the user wants) or the
+  // /classify call itself fails (missing key, network). There is no
+  // button-grid fallback — the text field stays right there, editable, so
+  // the user just rephrases and presses 찾기 again.
+  const [typeError, setTypeError] = useState<string | null>(null);
   // Which candidate is currently featured as the hero card. null means
   // "whatever the backend ranked first" (see hero/rest below) — tapping a
   // row in 다른 후보 sets this rather than navigating, so comparing
@@ -69,7 +76,7 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
   // at its start and only commits state if it's still the latest.
   const requestIdRef = useRef(0);
 
-  const chooseType = async (value: NeedType) => {
+  const chooseType = async (value: string) => {
     const requestId = ++requestIdRef.current;
     setNeedType(value);
     setLoading(true);
@@ -79,7 +86,6 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
     try {
       const result = await postRecommendations({
         type: value,
-        budget: DEFAULT_BUDGET,
         lat: center.latitude,
         lng: center.longitude,
       });
@@ -115,8 +121,36 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
     setCandidates([]);
     setError(null);
     setSelectedId(null);
+    setFreeText('');
+    setTypeError(null);
     setStep('type');
   }, []);
+
+  // Classifies the free-text input into a place category via POST
+  // /classify, then hands off to chooseType. Claude not being able to tell
+  // what kind of place the user wants (classification returns null), or
+  // any /classify failure, surfaces as an inline retry prompt on this same
+  // step — see typeError's declaration above. There is no button fallback.
+  const submitFreeText = async () => {
+    const text = freeText.trim();
+    if (!text || classifying) {
+      return;
+    }
+    setClassifying(true);
+    setTypeError(null);
+    try {
+      const result = await postClassifyNeed(text);
+      if (result.type) {
+        await chooseType(result.type);
+      } else {
+        setTypeError('어떤 곳을 찾으시는지 파악하지 못했습니다. 다른 표현으로 다시 시도해 주십시오.');
+      }
+    } catch {
+      setTypeError('어떤 곳을 찾으시는지 파악하지 못했습니다. 다른 표현으로 다시 시도해 주십시오.');
+    } finally {
+      setClassifying(false);
+    }
+  };
 
   // Drives the 홈 button on GuideScreen (via App.tsx's goHome/resetToken):
   // resetToken is a counter, not a boolean, so repeated home taps each fire
@@ -134,7 +168,6 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
     }
     onGuide(place, {
       type: needType,
-      budget: DEFAULT_BUDGET,
       lat: center.latitude,
       lng: center.longitude,
     });
@@ -169,16 +202,23 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
       {step === 'type' && (
         <View style={[shellStyles.promptBox, styles.panel]}>
           <Text style={styles.question}>무엇이 필요하십니까?</Text>
-          <View style={styles.optionGrid}>
-            {TYPE_OPTIONS.map(option => (
-              <AppButton
-                key={option.value}
-                label={option.label}
-                onPress={() => chooseType(option.value)}
-                style={styles.optionButton}
-              />
-            ))}
-          </View>
+          <TextInput
+            style={styles.input}
+            value={freeText}
+            onChangeText={setFreeText}
+            placeholder="예: 당구장, 헬스장, 조용한 카페 등"
+            placeholderTextColor={theme.colors.muted}
+            editable={!classifying}
+            onSubmitEditing={submitFreeText}
+            returnKeyType="search"
+          />
+          {classifying ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : (
+            <AppButton label="찾기" variant="accent" onPress={submitFreeText} />
+          )}
+
+          {typeError && <Text style={styles.errorText}>{typeError}</Text>}
         </View>
       )}
 
@@ -265,14 +305,20 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body,
     lineHeight: 24,
   },
-  optionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.md,
+  input: {
+    minHeight: 52,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.md,
+    color: theme.colors.text,
+    fontSize: theme.typography.body,
   },
-  optionButton: {
-    flexGrow: 1,
-    minWidth: '45%',
+  errorText: {
+    color: theme.colors.danger,
+    fontSize: theme.typography.caption,
+    fontWeight: '700',
   },
   eyebrow: {
     color: theme.colors.primary,

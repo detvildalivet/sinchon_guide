@@ -70,7 +70,6 @@ function AppContent() {
       placeId: place.placeId,
       placeName: place.name,
       type: chosenNeed.type,
-      budget: chosenNeed.budget,
     }).catch(() => {});
   };
 

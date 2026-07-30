@@ -32,7 +32,6 @@ def _candidate(place_id="p1", lat=USER_LAT, lng=USER_LNG, name="스타벅스 신
         "lat": lat,
         "lng": lng,
         "rating": None,
-        "price_level": None,
         "open_now": None,
     }
 
@@ -140,8 +139,6 @@ def test_enrich_candidates_fills_fields_on_match(monkeypatch):
     assert candidates[0]["rating"] == 4.5
     assert candidates[0]["open_now"] is True
     assert candidates[0]["rating_count"] == 42
-    # price_level is no longer fetched at all -- enrichment must not touch it.
-    assert candidates[0]["price_level"] is None
 
 
 def test_enrich_candidates_leaves_fields_none_on_no_match(monkeypatch):
@@ -154,7 +151,6 @@ def test_enrich_candidates_leaves_fields_none_on_no_match(monkeypatch):
     enrich_candidates(_FakeSession(), candidates)
 
     assert candidates[0]["rating"] is None
-    assert candidates[0]["price_level"] is None
     assert candidates[0]["open_now"] is None
     assert "rating_count" not in candidates[0]
 

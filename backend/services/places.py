@@ -112,17 +112,23 @@ def _short_category(category_name: Optional[str]) -> Optional[str]:
 def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[dict]:
     """Query Kakao Local for candidates around (lat, lng).
 
-    Budget is intentionally NOT sent as a request filter — Kakao has no
-    price-level concept at all (see module docstring). `price_level` is
-    always None on returned candidates; the scorer treats that as neutral.
+    need_type is an open string, not a closed enum (see schemas.NeedIn):
+    one of the 4 curated types below gets Kakao's dedicated category-code
+    search; anything else — an arbitrary Korean keyword Claude extracted in
+    services/classify.py, e.g. "당구장" — is dispatched to _search_keyword
+    instead, a plain Kakao keyword search with no category restriction.
 
     Returns a list of plain dicts: {place_id, name, lat, lng, rating,
-    price_level, open_now, category, address} — rating/price_level/open_now
-    are always None (Kakao doesn't provide them), kept in the shape for
-    schema/scorer compatibility. category/address are real values straight
-    from Kakao's response (see _short_category), surfaced to the client via
+    open_now, category, address} — rating/open_now are always None here
+    (Kakao doesn't provide them; services/enrichment.py fills rating/open_now
+    in for the nearest few candidates), kept in the shape for schema/scorer
+    compatibility. category/address are real values straight from Kakao's
+    response (see _short_category), surfaced to the client via
     RecommendationOut instead of being discarded as before.
     """
+    if need_type not in NEED_TYPE_CONFIG:
+        return _search_keyword(db, lat, lng, need_type)
+
     config = NEED_TYPE_CONFIG[need_type]
     url = KEYWORD_SEARCH_URL if config["keyword"] else CATEGORY_SEARCH_URL
 
@@ -156,7 +162,6 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
             "lat": float(place["y"]),
             "lng": float(place["x"]),
             "rating": None,
-            "price_level": None,
             "open_now": None,
             # Kakao's category_name is a '대분류 > 중분류 > 소분류' breadcrumb
             # (e.g. "음식점 > 카페,디저트 > 카페") — the last segment is the
@@ -172,14 +177,58 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
     return candidates
 
 
+def _search_keyword(db: Session, lat: float, lng: float, keyword: str) -> list[dict]:
+    """Open-ended search for anything outside the 4 curated need types (see
+    NEED_TYPE_CONFIG) — e.g. "당구장", "헬스장", extracted by
+    services/classify.py from free text that didn't match one of the
+    curated categories. Hits Kakao's keyword endpoint directly with no
+    category_group_code and no _matches_need_type post-filter: there's no
+    fixed target category to defensively check an arbitrary keyword
+    against, so Kakao's own relevance ranking is the only filter. Builds
+    the same candidate dict shape as search_nearby's curated path, so
+    services/enrichment.py and services/recommendation.py need no changes.
+    """
+    params = {
+        "query": keyword,
+        "x": lng,
+        "y": lat,
+        "radius": SEARCH_RADIUS_METERS,
+        "size": KAKAO_PAGE_SIZE,
+        "sort": "distance",
+    }
+    headers = {"Authorization": f"KakaoAK {require_kakao_key()}"}
+
+    with httpx.Client(timeout=10.0) as client:
+        response = request_external_api(
+            client, "GET", KEYWORD_SEARCH_URL, "Kakao Local API", params=params, headers=headers
+        )
+        data = response.json()
+
+    candidates: list[dict] = []
+    for place in data.get("documents", []):
+        candidate = {
+            "place_id": place["id"],
+            "name": place.get("place_name", "이름 없음"),
+            "lat": float(place["y"]),
+            "lng": float(place["x"]),
+            "rating": None,
+            "open_now": None,
+            "category": _short_category(place.get("category_name")),
+            "address": place.get("road_address_name") or place.get("address_name") or None,
+        }
+        candidates.append(candidate)
+        _upsert_annotation(db, candidate)
+
+    db.commit()
+    return candidates
+
+
 def _upsert_annotation(db: Session, candidate: dict) -> None:
     """Upsert the place's identity/location fields only. `rating` is owned by
     services.enrichment._persist_annotation (Google is the only source for
     it) — writing candidate["rating"] here, which is always None at this
     point in the pipeline (see search_nearby's docstring), would blank out
-    whatever enrichment wrote on every subsequent search. `price_level` is
-    never fetched by anything anymore (see module docstring), so it's left
-    untouched rather than written as None."""
+    whatever enrichment wrote on every subsequent search."""
     row: Optional[PlaceAnnotation] = (
         db.query(PlaceAnnotation)
         .filter(PlaceAnnotation.place_id == candidate["place_id"])

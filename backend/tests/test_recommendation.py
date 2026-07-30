@@ -23,7 +23,6 @@ def _place(place_id, lat, lng, rating=4.0, open_now=True):
         "lat": lat,
         "lng": lng,
         "rating": rating,
-        "price_level": None,
         "open_now": open_now,
     }
 

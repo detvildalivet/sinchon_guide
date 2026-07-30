@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import Base, engine
-from routers import recommendations, routes, users, visits
+from routers import classify, recommendations, routes, users, visits
 
 Base.metadata.create_all(bind=engine)
 
@@ -25,6 +25,7 @@ app.include_router(users.router)
 app.include_router(visits.router)
 app.include_router(recommendations.router)
 app.include_router(routes.router)
+app.include_router(classify.router)
 
 
 @app.get("/")

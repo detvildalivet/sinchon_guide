@@ -50,7 +50,6 @@ def test_list_visits_returns_newest_first():
         place_id="p1",
         place_name="오래된 카페",
         type="cafe",
-        budget="mid",
         created_at=datetime.utcnow() - timedelta(days=1),
     )
     newer = Visit(
@@ -58,7 +57,6 @@ def test_list_visits_returns_newest_first():
         place_id="p2",
         place_name="최근 식당",
         type="meal",
-        budget="mid",
         created_at=datetime.utcnow(),
     )
     db.add_all([older, newer])
@@ -74,8 +72,8 @@ def test_list_visits_only_returns_current_users_rows():
     user = _make_user(db, email="a@test.com", nickname="a")
     other = _make_user(db, email="b@test.com", nickname="b")
 
-    db.add(Visit(user_id=user.id, place_id="mine", place_name="내 장소", type="cafe", budget="mid"))
-    db.add(Visit(user_id=other.id, place_id="theirs", place_name="남의 장소", type="cafe", budget="mid"))
+    db.add(Visit(user_id=user.id, place_id="mine", place_name="내 장소", type="cafe"))
+    db.add(Visit(user_id=other.id, place_id="theirs", place_name="남의 장소", type="cafe"))
     db.commit()
 
     result = list_visits(db=db, user=user)
@@ -103,7 +101,7 @@ def test_list_visits_empty_when_no_history():
 def test_clear_visits_hides_prior_rows_from_list_visits():
     db = _make_session()
     user = _make_user(db)
-    db.add(Visit(user_id=user.id, place_id="p1", place_name="이전 방문", type="cafe", budget="mid"))
+    db.add(Visit(user_id=user.id, place_id="p1", place_name="이전 방문", type="cafe"))
     db.commit()
 
     clear_visits(db=db, user=user)
@@ -115,7 +113,7 @@ def test_clear_visits_hides_prior_rows_from_list_visits():
 def test_clear_visits_does_not_delete_or_modify_visit_rows():
     db = _make_session()
     user = _make_user(db)
-    db.add(Visit(user_id=user.id, place_id="p1", place_name="이전 방문", type="cafe", budget="mid"))
+    db.add(Visit(user_id=user.id, place_id="p1", place_name="이전 방문", type="cafe"))
     db.commit()
 
     clear_visits(db=db, user=user)
@@ -129,12 +127,12 @@ def test_clear_visits_does_not_delete_or_modify_visit_rows():
 def test_visit_made_after_clear_is_visible_again():
     db = _make_session()
     user = _make_user(db)
-    db.add(Visit(user_id=user.id, place_id="old", place_name="예전 장소", type="cafe", budget="mid"))
+    db.add(Visit(user_id=user.id, place_id="old", place_name="예전 장소", type="cafe"))
     db.commit()
 
     clear_visits(db=db, user=user)
 
-    db.add(Visit(user_id=user.id, place_id="new", place_name="새 장소", type="meal", budget="mid"))
+    db.add(Visit(user_id=user.id, place_id="new", place_name="새 장소", type="meal"))
     db.commit()
 
     result = list_visits(db=db, user=user)
@@ -166,12 +164,12 @@ def test_clear_visits_does_not_affect_personalization_count_query():
     count regardless of an intervening clear_visits() call."""
     db = _make_session()
     user = _make_user(db)
-    db.add(Visit(user_id=user.id, place_id="p1", place_name="단골집", type="cafe", budget="mid"))
+    db.add(Visit(user_id=user.id, place_id="p1", place_name="단골집", type="cafe"))
     db.commit()
 
     clear_visits(db=db, user=user)
 
-    db.add(Visit(user_id=user.id, place_id="p1", place_name="단골집", type="cafe", budget="mid"))
+    db.add(Visit(user_id=user.id, place_id="p1", place_name="단골집", type="cafe"))
     db.commit()
 
     visit_rows = (

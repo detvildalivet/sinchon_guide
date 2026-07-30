@@ -43,7 +43,6 @@ class Visit(Base):
     place_id = Column(String, nullable=False, index=True)
     place_name = Column(String, nullable=False)
     type = Column(String, nullable=False, index=True)  # meal / cafe / drinks / dessert
-    budget = Column(String, nullable=False)  # cheap / mid / splurge
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     user = relationship("User", back_populates="visits")
@@ -78,7 +77,8 @@ class PlaceAnnotation(Base):
     that have actually surfaced in a recommendation get cached here. Basic
     fields are refreshed opportunistically (last_fetched); curated_tags is the
     slot for hand-tuned personalization signals Kakao's API can't supply
-    (Kakao has no rating/price-level/open-now data — see services/places.py).
+    (Kakao has no rating/open-now data on its own — see services/places.py;
+    rating is filled in by services/enrichment.py's Google Places pass).
     """
     __tablename__ = "place_annotations"
 
@@ -87,6 +87,5 @@ class PlaceAnnotation(Base):
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
     rating = Column(Float, nullable=True)
-    price_level = Column(Integer, nullable=True)  # 0-4 scale; currently always unset — no active provider supplies price data (see services/places.py)
     curated_tags = Column(JSON, default=list, nullable=False)
     last_fetched = Column(DateTime, default=datetime.utcnow, nullable=False)

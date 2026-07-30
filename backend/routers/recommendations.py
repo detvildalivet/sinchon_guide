@@ -30,9 +30,6 @@ def recommend(
     the enrichment cutoff keep None fields and are ranked on distance +
     visit history alone, same as before enrichment existed.
 
-    need.budget is accepted but no longer used for ranking — see
-    services/recommendation.py's module docstring for why (budget-fit was
-    tried and dropped; price-level data was too sparse to matter).
     """
     candidates = search_nearby(db, need.lat, need.lng, need.type)
     enrich_candidates(db, candidates)

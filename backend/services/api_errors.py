@@ -1,5 +1,5 @@
 """Shared error surfacing for external API calls (Kakao Local, TMAP routes,
-Google Places enrichment).
+Google Places enrichment, Gemini classification).
 
 Without this, any upstream rejection (bad/restricted key, billing not
 enabled, quota exceeded, malformed request) bubbles up as an unhandled
@@ -57,6 +57,22 @@ def require_google_key() -> str:
                 "IP-restricted while the backend runs on a dynamic IP "
                 "(an IP-restricted key is what broke the old Google "
                 "integration — see CLAUDE.md's googleghost.png note)."
+            ),
+        )
+    return key
+
+
+def require_gemini_key() -> str:
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Server is not configured with GEMINI_API_KEY — "
+                "set it in the backend environment (see CLAUDE.md). Get a "
+                "free key from Google AI Studio (aistudio.google.com/apikey) "
+                "— Flash/Flash-Lite models are free to use there. Used by "
+                "services/classify.py to classify free-text need input."
             ),
         )
     return key
