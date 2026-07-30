@@ -173,6 +173,13 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
 
 
 def _upsert_annotation(db: Session, candidate: dict) -> None:
+    """Upsert the place's identity/location fields only. `rating` is owned by
+    services.enrichment._persist_annotation (Google is the only source for
+    it) — writing candidate["rating"] here, which is always None at this
+    point in the pipeline (see search_nearby's docstring), would blank out
+    whatever enrichment wrote on every subsequent search. `price_level` is
+    never fetched by anything anymore (see module docstring), so it's left
+    untouched rather than written as None."""
     row: Optional[PlaceAnnotation] = (
         db.query(PlaceAnnotation)
         .filter(PlaceAnnotation.place_id == candidate["place_id"])
@@ -185,6 +192,4 @@ def _upsert_annotation(db: Session, candidate: dict) -> None:
     row.name = candidate["name"]
     row.lat = candidate["lat"]
     row.lng = candidate["lng"]
-    row.rating = candidate["rating"]
-    row.price_level = candidate["price_level"]
     row.last_fetched = datetime.utcnow()

@@ -43,23 +43,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     (async () => {
-      const stored = await loadToken();
-      if (!active) {
-        return;
-      }
-      if (stored) {
-        try {
-          const me = await getMe();
-          if (active) {
-            setTokenState(stored);
-            setUser(me);
-          }
-        } catch {
-          await clearToken();
+      // Wrapped end-to-end: previously only the getMe() call inside had a
+      // try/catch, so a rejection from loadToken() itself, or from the
+      // clearToken() called on the getMe() failure path, propagated out of
+      // this IIFE uncaught — setLoading(false) below never ran, and the app
+      // was stuck on App.tsx's splash spinner forever with no recovery
+      // short of a reinstall. Falling back to "logged out" on any failure
+      // here is always a safe, reachable terminal state.
+      try {
+        const stored = await loadToken();
+        if (!active) {
+          return;
         }
-      }
-      if (active) {
-        setLoading(false);
+        if (stored) {
+          try {
+            const me = await getMe();
+            if (active) {
+              setTokenState(stored);
+              setUser(me);
+            }
+          } catch {
+            await clearToken();
+          }
+        }
+      } catch {
+        // Storage itself failed (loadToken or the clearToken above) —
+        // treat as logged out rather than leaving loading stuck.
+        setTokenState(null);
+        setUser(null);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
     })();
     return () => {

@@ -95,17 +95,28 @@ export function requestCurrentLocation(): Promise<LocationResult> {
 
     PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-    ).then(result => {
-      if (result === PermissionsAndroid.RESULTS.GRANTED) {
-        readPosition();
-        return;
-      }
+    )
+      .then(result => {
+        if (result === PermissionsAndroid.RESULTS.GRANTED) {
+          readPosition();
+          return;
+        }
 
-      finish({
-        status: 'denied',
-        coordinate: DEFAULT_COORDINATE,
+        finish({
+          status: 'denied',
+          coordinate: DEFAULT_COORDINATE,
+        });
+      })
+      // A thrown/rejected permission request (rather than a granted/denied
+      // result) previously left this Promise unsettled forever, which
+      // stranded useUserLocation's `loading` at true and produced a
+      // permanent spinner. Fall back the same way an explicit denial does.
+      .catch(() => {
+        finish({
+          status: 'denied',
+          coordinate: DEFAULT_COORDINATE,
+        });
       });
-    });
   });
 }
 

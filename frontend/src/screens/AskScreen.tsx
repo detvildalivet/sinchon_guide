@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -35,22 +35,46 @@ const DEFAULT_BUDGET: Budget = 'mid';
 type Props = {
   onGuide: (place: Recommendation, need: Need) => void;
   onOpenHistory: () => void;
+  // Incremented by App.tsx's goHome() to force this screen back to its
+  // 'type' step from outside — e.g. a 홈 button on GuideScreen. AskScreen is
+  // always mounted (see App.tsx) specifically so navigating away and back
+  // doesn't reset it on its own, so this reset has to be explicit rather
+  // than a side effect of any route change. 0 means "no reset yet" so it
+  // never fires on initial mount.
+  resetToken: number;
 };
 
-export function AskScreen({ onGuide, onOpenHistory }: Props) {
+export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
   const insets = useSafeAreaInsets();
   const { center } = useUserLocation();
+  const scrollRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState<Step>('type');
   const [needType, setNeedType] = useState<NeedType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Recommendation[]>([]);
+  // Which candidate is currently featured as the hero card. null means
+  // "whatever the backend ranked first" (see hero/rest below) — tapping a
+  // row in 다른 후보 sets this rather than navigating, so comparing
+  // candidates doesn't immediately commit to a visit.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Guards against a stale response winning a race: tapping two need types
+  // in quick succession (or 다시 시도 twice, or 처음부터 while a request is
+  // still in flight) previously let whichever response landed last win,
+  // regardless of which request it actually belonged to — pairing `needType`
+  // from one query with `candidates` from another, which then leaked into
+  // guideTo's onGuide/postVisit call. Each request captures the id current
+  // at its start and only commits state if it's still the latest.
+  const requestIdRef = useRef(0);
 
   const chooseType = async (value: NeedType) => {
+    const requestId = ++requestIdRef.current;
     setNeedType(value);
     setLoading(true);
     setError(null);
+    setSelectedId(null);
     setStep('result');
     try {
       const result = await postRecommendations({
@@ -59,15 +83,23 @@ export function AskScreen({ onGuide, onOpenHistory }: Props) {
         lat: center.latitude,
         lng: center.longitude,
       });
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
       setCandidates(result);
     } catch (err) {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
       setError(
         err instanceof ApiError
           ? err.message
           : '추천을 불러오지 못했습니다. 다시 시도해 주십시오.',
       );
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 
@@ -77,12 +109,24 @@ export function AskScreen({ onGuide, onOpenHistory }: Props) {
     }
   };
 
-  const startOver = () => {
+  const startOver = useCallback(() => {
+    requestIdRef.current += 1;
     setNeedType(null);
     setCandidates([]);
     setError(null);
+    setSelectedId(null);
     setStep('type');
-  };
+  }, []);
+
+  // Drives the 홈 button on GuideScreen (via App.tsx's goHome/resetToken):
+  // resetToken is a counter, not a boolean, so repeated home taps each fire
+  // this even if the value between them never changed otherwise. Skips the
+  // initial 0 so mounting this screen doesn't itself trigger a reset.
+  useEffect(() => {
+    if (resetToken > 0) {
+      startOver();
+    }
+  }, [resetToken, startOver]);
 
   const guideTo = (place: Recommendation) => {
     if (!needType) {
@@ -96,11 +140,24 @@ export function AskScreen({ onGuide, onOpenHistory }: Props) {
     });
   };
 
-  const hero = candidates[0] ?? null;
-  const rest = candidates.slice(1);
+  // hero is whichever candidate is selected, falling back to the backend's
+  // top-ranked one. `rest` filters rather than reorders the array, so the
+  // scorer's ranking order is preserved — the previously-featured place
+  // drops back into its own ranked position instead of jumping to the front.
+  const hero =
+    candidates.find(candidate => candidate.placeId === selectedId) ??
+    candidates[0] ??
+    null;
+  const rest = candidates.filter(candidate => candidate !== hero);
+
+  const selectCandidate = (candidate: Recommendation) => {
+    setSelectedId(candidate.placeId);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentContainerStyle={[
         styles.content,
         { paddingTop: insets.top + theme.spacing.xl, paddingBottom: insets.bottom + theme.spacing.xl },
@@ -157,7 +214,9 @@ export function AskScreen({ onGuide, onOpenHistory }: Props) {
                   {rest.map(candidate => (
                     <TouchableFade
                       key={candidate.placeId}
-                      onPress={() => guideTo(candidate)}
+                      onPress={() => selectCandidate(candidate)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${candidate.name}을(를) 추천 장소로 보기`}
                       style={styles.candidateRow}>
                       <View style={styles.candidateMain}>
                         <Text style={styles.candidateName}>{candidate.name}</Text>

@@ -25,11 +25,12 @@ import { Recommendation } from '../types/recommendation';
 type Props = {
   place: Recommendation;
   onBack: () => void;
+  onGoHome: () => void;
 };
 
 const PIN_SIZE = 20; // must match styles.pin's width/height below
 
-export function GuideScreen({ place, onBack }: Props) {
+export function GuideScreen({ place, onBack, onGoHome }: Props) {
   const insets = useSafeAreaInsets();
   const { center: userCoord, loading: locationLoading } = useUserLocation();
 
@@ -142,6 +143,14 @@ export function GuideScreen({ place, onBack }: Props) {
         <Text style={styles.backTagText}>{'< 다시 추천받기'}</Text>
       </Pressable>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="처음 화면으로 이동"
+        onPress={onGoHome}
+        style={[shellStyles.promptPanel, styles.homeTag, { top: insets.top + theme.spacing.md }]}>
+        <Text style={styles.homeIcon}>⌂</Text>
+      </Pressable>
+
       <View
         style={[
           shellStyles.bottomPanel,
@@ -188,6 +197,20 @@ const styles = StyleSheet.create({
     right: undefined,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
+  },
+  homeTag: {
+    position: 'absolute',
+    left: undefined,
+    right: theme.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  homeIcon: {
+    color: theme.colors.primary,
+    fontSize: 20,
+    fontWeight: '900',
   },
   backTagText: {
     color: theme.colors.primary,

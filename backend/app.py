@@ -11,7 +11,12 @@ app = FastAPI(title="Sinchon Guide API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    # Auth here is Authorization: Bearer, never cookies, so nothing depends
+    # on credentialed CORS — and allow_origins=["*"] with
+    # allow_credentials=True is a contradiction browsers refuse to honor for
+    # credentialed requests anyway (they won't echo back Access-Control-
+    # Allow-Origin: * with Allow-Credentials: true).
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -62,6 +62,28 @@ def require_google_key() -> str:
     return key
 
 
+def require_jwt_secret() -> str:
+    # Unlike the three provider keys above, this isn't a third-party API
+    # credential — it's the HMAC key that signs every auth token this app
+    # issues. It has no safe hardcoded fallback: a fallback known from the
+    # public repo is equivalent to no signature at all, letting anyone forge
+    # a token for any user_id. Read lazily (at call time, not import time)
+    # so the app still boots and pytest still runs without it set, matching
+    # the require_kakao_key/require_tmap_key/require_google_key pattern.
+    key = os.environ.get("SINCHON_JWT_SECRET")
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Server is not configured with SINCHON_JWT_SECRET — set it "
+                "in the backend environment (see CLAUDE.md) to a long, "
+                "random value. This key signs every auth token; there is no "
+                "safe default."
+            ),
+        )
+    return key
+
+
 def request_external_api(
     client: httpx.Client, method: str, url: str, api_name: str, **kwargs
 ) -> httpx.Response:

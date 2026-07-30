@@ -50,6 +50,11 @@ function AppContent() {
   const [picked, setPicked] = useState<Recommendation | null>(null);
   const [need, setNeed] = useState<Need | null>(null);
   const [hasOpenedHistory, setHasOpenedHistory] = useState(false);
+  // Counter (not boolean) passed to AskScreen as resetToken: incrementing it
+  // is how goHome() below tells the always-mounted AskScreen to reset itself
+  // back to its 'type' step, since nothing about switching `route` back to
+  // 'ask' does that on its own (see backToAsk).
+  const [askResetToken, setAskResetToken] = useState(0);
 
   const openGuide = (place: Recommendation, chosenNeed: Need) => {
     setPicked(place);
@@ -82,11 +87,20 @@ function AppContent() {
     setRoute('ask');
   };
 
+  // Unlike backToAsk, this is a deliberate reset: it's the 홈 button's only
+  // path back to AskScreen's actual home ('type') step, not just "whatever
+  // AskScreen was last showing". picked/need are still left alone so
+  // GuideScreen stays mounted-but-hidden, same as backToAsk.
+  const goHome = () => {
+    setAskResetToken(token => token + 1);
+    setRoute('ask');
+  };
+
   return (
     <View style={[styles.container, layoutStyles.screen]}>
-      <AskScreen onGuide={openGuide} onOpenHistory={openHistory} />
+      <AskScreen onGuide={openGuide} onOpenHistory={openHistory} resetToken={askResetToken} />
       <CrossfadeSwitch visible={route === 'guide'}>
-        {picked && need && <GuideScreen place={picked} onBack={backToAsk} />}
+        {picked && need && <GuideScreen place={picked} onBack={backToAsk} onGoHome={goHome} />}
       </CrossfadeSwitch>
       <CrossfadeSwitch visible={route === 'history'}>
         {hasOpenedHistory && (
