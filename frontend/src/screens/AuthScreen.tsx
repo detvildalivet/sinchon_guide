@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { theme } from '../design/theme';
 import { useAuth } from '../auth/AuthContext';
+import { MAX_LENGTH, MIN_LENGTH, checkPassword, passwordError } from '../utils/password';
 
 type Mode = 'login' | 'signup';
 
@@ -38,20 +39,23 @@ export function AuthScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const [realName, setRealName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [nickname, setNickname] = useState('');
 
   const isSignup = mode === 'signup';
+  const passwordChecks = checkPassword(password);
 
   const validate = (): string | null => {
     if (!email.includes('@')) {
       return '올바른 이메일을 입력하십시오.';
     }
-    if (password.length < 8) {
-      return '비밀번호는 8자 이상이어야 합니다.';
-    }
     if (isSignup) {
+      const pwError = passwordError(password);
+      if (pwError) {
+        return pwError;
+      }
       if (realName.trim().length === 0) {
         return '이름을 입력하십시오.';
       }
@@ -61,6 +65,10 @@ export function AuthScreen() {
       if (nickname.trim().length < 2 || nickname.trim().length > 20) {
         return '닉네임은 2~20자로 입력하십시오.';
       }
+    } else if (password.length === 0) {
+      // Login only needs a non-empty password — accounts created before
+      // this policy existed (e.g. plain lowercase) must keep working.
+      return '비밀번호를 입력하십시오.';
     }
     return null;
   };
@@ -97,6 +105,7 @@ export function AuthScreen() {
 
   const toggleMode = () => {
     setError(null);
+    setPasswordTouched(false);
     setMode(isSignup ? 'login' : 'signup');
   };
 
@@ -132,11 +141,26 @@ export function AuthScreen() {
           <Field
             label="비밀번호"
             value={password}
-            onChangeText={setPassword}
-            placeholder="8자 이상"
+            onChangeText={text => {
+              setPassword(text);
+              setPasswordTouched(true);
+            }}
+            placeholder="8~64자, 영문·숫자·기호 중 2종 이상"
             secureTextEntry
             autoCapitalize="none"
           />
+          {isSignup && passwordTouched ? (
+            <View style={styles.passwordChecklist}>
+              <ChecklistItem
+                ok={passwordChecks.length}
+                label={`${MIN_LENGTH}자 이상 ${MAX_LENGTH}자 이하`}
+              />
+              <ChecklistItem
+                ok={passwordChecks.variety}
+                label="영문·숫자·기호 중 2종 이상"
+              />
+            </View>
+          ) : null}
           {isSignup ? (
             <>
               <Field
@@ -191,6 +215,23 @@ export function AuthScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+type ChecklistItemProps = { ok: boolean; label: string };
+
+// One row of the live signup password checklist — ✓ green once satisfied,
+// ○ muted while not. See src/utils/password.ts for the underlying rule.
+function ChecklistItem({ ok, label }: ChecklistItemProps) {
+  return (
+    <View style={styles.checklistRow}>
+      <Text style={[styles.checklistGlyph, ok && styles.checklistGlyphOk]}>
+        {ok ? '✓' : '○'}
+      </Text>
+      <Text style={[styles.checklistLabel, ok && styles.checklistLabelOk]}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -257,9 +298,33 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body,
   },
   error: {
-    color: '#D92D20',
+    color: theme.colors.danger,
     fontSize: theme.typography.caption,
     fontWeight: '700',
+  },
+  passwordChecklist: {
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.xs,
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  checklistGlyph: {
+    color: theme.colors.subtle,
+    fontSize: theme.typography.caption,
+    fontWeight: '800',
+  },
+  checklistGlyphOk: {
+    color: theme.colors.success,
+  },
+  checklistLabel: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption,
+  },
+  checklistLabelOk: {
+    color: theme.colors.success,
   },
   actions: {
     gap: theme.spacing.md,

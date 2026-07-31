@@ -7,7 +7,11 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
+    # No length/character constraint here on purpose — routers/users.py calls
+    # services.password.validate_password() explicitly instead, so the
+    # rejection is a clean 400 with a bare Korean message rather than a
+    # pydantic 422 whose detail[0].msg is prefixed "Value error, ...".
+    password: str
     real_name: str
     birth_date: date
     nickname: str = Field(min_length=2, max_length=20)

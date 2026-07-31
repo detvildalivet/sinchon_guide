@@ -7,12 +7,21 @@ from auth import create_access_token, get_current_user, hash_password, verify_pa
 from database import get_db
 from models import User
 from schemas import Token, UserCreate, UserSelf
+from services.password import validate_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
+    # Checked before touching db at all: a weak password should never reach
+    # a query, and this keeps the check testable without a database.
+    password_error = validate_password(payload.password)
+    if password_error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=password_error,
+        )
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),

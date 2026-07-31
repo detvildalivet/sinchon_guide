@@ -17,6 +17,7 @@ export const theme = {
     accent: '#FFD84D',
     accentPressed: '#F4C51F',
     danger: '#D92D20',
+    success: '#12805C',
     overlay: 'rgba(8, 23, 65, 0.48)',
   },
   spacing: {
