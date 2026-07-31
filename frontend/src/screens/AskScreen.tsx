@@ -242,7 +242,6 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
               <RatingStars rating={hero.rating} ratingCount={hero.ratingCount} />
               <OpenStatusBadge openNow={hero.openNow} />
               <PlaceMeta distanceMinutes={hero.distanceMinutes} category={hero.category} />
-              <Text style={styles.reason}>{hero.reason}</Text>
               <View style={styles.actions}>
                 <AppButton label="이 장소로 안내" variant="accent" onPress={() => guideTo(hero)} />
                 <AppButton label="처음부터" variant="ghost" onPress={startOver} />
@@ -329,11 +328,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.typography.heading,
     fontWeight: '900',
-  },
-  reason: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body,
-    lineHeight: 24,
   },
   actions: {
     gap: theme.spacing.sm,
