@@ -1,33 +1,23 @@
 """Password policy for account signup.
 
-Pure, no DB/network access — a plain function over a plain string, the same
-shape as services/recommendation.py, which keeps it trivially testable (see
-tests/test_password.py) independent of FastAPI/pydantic.
+Pure, no DB/network access — trivially testable (see tests/test_password.py).
 
-Policy (settled during brainstorming): 8-64 characters, and at least 2 of 3
-character classes present (letter / digit / symbol). "Letter" means any
-Unicode letter (str.isalpha()), not just ASCII a-z/A-Z, so a Korean
-passphrase like "신촌가이드좋아요1" counts as letter+digit and passes —
-restricting to ASCII would wrongly reject legitimate Korean passwords.
-Whitespace belongs to none of the three classes, so a string of only spaces
-has zero classes and is rejected by the variety check alone; no separate
-whitespace rule is needed.
+Policy: 8-20 characters, and at least 2 of 3 character classes present
+(letter / digit / symbol). "Letter" means any Unicode letter, not just ASCII,
+so Korean passphrases pass; whitespace belongs to no class.
 
-This is the single source of truth for the rule: schemas.py deliberately
-does NOT also declare a pydantic Field(min_length=...) constraint, since a
-pydantic-level rejection surfaces as a 422 whose detail[0].msg is prefixed
-"Value error, ..." (see api/client.ts's parseError), which would leak into
-the Korean UI. routers/users.py calls validate_password() explicitly and
-raises a clean 400 with the Korean message as-is.
+Single source of truth for the rule: schemas.py deliberately has no
+pydantic-level length constraint (that would surface as a "Value error, ..."
+422 leaking into the Korean UI). routers/users.py calls validate_password()
+explicitly for a clean 400 instead.
 
-frontend/src/utils/password.ts mirrors this rule for the live signup
-checklist; the two are kept in sync by hand, not by a shared test source
-(the example tables are duplicated, one per side).
+frontend/src/utils/password.ts mirrors this rule by hand for the live
+signup checklist.
 """
 from typing import Optional
 
 MIN_LENGTH = 8
-MAX_LENGTH = 64
+MAX_LENGTH = 20
 
 _LENGTH_ERROR = f"비밀번호는 {MIN_LENGTH}자 이상 {MAX_LENGTH}자 이하여야 합니다."
 _VARIETY_ERROR = "비밀번호는 영문·숫자·기호 중 2종 이상을 포함해야 합니다."

@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Icon } from './Icon';
 import { theme } from '../design/theme';
 
 const STAR_COUNT = 5;
@@ -20,12 +21,15 @@ export function RatingStars({ rating, ratingCount }: Props) {
   }
 
   const filled = Math.min(STAR_COUNT, Math.max(0, Math.round(rating)));
-  const stars = '★'.repeat(filled) + '☆'.repeat(STAR_COUNT - filled);
   const value = ratingCount ? `${rating.toFixed(1)} (${ratingCount})` : rating.toFixed(1);
 
   return (
     <View style={styles.row}>
-      <Text style={styles.stars}>{stars}</Text>
+      <View style={styles.stars}>
+        {Array.from({ length: STAR_COUNT }, (_, i) => (
+          <Icon key={i} name={i < filled ? 'star' : 'starEmpty'} size={14} color={theme.colors.star} />
+        ))}
+      </View>
       <Text style={styles.value}>{value}</Text>
     </View>
   );
@@ -38,18 +42,15 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   stars: {
-    color: theme.colors.accent,
-    fontSize: theme.typography.body,
-    letterSpacing: 1,
+    flexDirection: 'row',
+    gap: 1,
   },
   value: {
+    ...theme.text.caption,
     color: theme.colors.muted,
-    fontSize: theme.typography.caption,
-    fontWeight: '700',
   },
   empty: {
+    ...theme.text.caption,
     color: theme.colors.subtle,
-    fontSize: theme.typography.caption,
-    fontWeight: '600',
   },
 });

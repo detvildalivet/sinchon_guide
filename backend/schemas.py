@@ -17,11 +17,6 @@ class UserCreate(BaseModel):
     nickname: str = Field(min_length=2, max_length=20)
 
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-
 class UserSelf(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

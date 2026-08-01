@@ -38,17 +38,6 @@ export const MOCK_COORDINATE: MapCoordinate = {
   longitude: 126.937,
 };
 
-// ~2.2km across — comfortably frames the backend's 1.2km search radius
-// around a single point without zooming in so tight that neighboring pins
-// would sit off-screen.
-const DEFAULT_ZOOM_DELTA = 0.02;
-
-export const DEFAULT_REGION: MapRegion = {
-  ...DEFAULT_COORDINATE,
-  latitudeDelta: DEFAULT_ZOOM_DELTA,
-  longitudeDelta: DEFAULT_ZOOM_DELTA,
-};
-
 export type LocationResult =
   | { status: 'granted'; coordinate: MapCoordinate }
   | { status: 'denied'; coordinate: MapCoordinate };
@@ -148,31 +137,6 @@ export function watchPosition(
   );
 
   return () => Geolocation.clearWatch(watchId);
-}
-
-export function offsetCoordinate(
-  origin: MapCoordinate,
-  metersNorth: number,
-  metersEast: number,
-): MapCoordinate {
-  const latitude = origin.latitude + metersNorth / 111_320;
-  const longitude =
-    origin.longitude +
-    metersEast / (111_320 * Math.cos((origin.latitude * Math.PI) / 180));
-
-  return { latitude, longitude };
-}
-
-export function regionAround(
-  coordinate: MapCoordinate,
-  latitudeDelta = DEFAULT_ZOOM_DELTA,
-  longitudeDelta = DEFAULT_ZOOM_DELTA,
-): MapRegion {
-  return {
-    ...coordinate,
-    latitudeDelta,
-    longitudeDelta,
-  };
 }
 
 /**

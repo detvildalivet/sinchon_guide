@@ -1,26 +1,14 @@
 import React, { PropsWithChildren } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { NaverMapView, NaverMapViewProps } from '@mj-studio/react-native-naver-map';
+import { NaverMapView } from '@mj-studio/react-native-naver-map';
 import { MapCoordinate, MapRegion } from '../services/locationService';
 
 type Props = PropsWithChildren<{
   region: MapRegion;
   userCoordinate?: MapCoordinate;
-  variant?: 'together' | 'solo';
-  onMapPress?: () => void;
-  mapProps?: Partial<NaverMapViewProps>;
 }>;
 
-export function LiveMapView({
-  region,
-  userCoordinate,
-  variant = 'together',
-  onMapPress,
-  mapProps,
-  children,
-}: Props) {
-  const solo = variant === 'solo';
-
+export function LiveMapView({ region, userCoordinate, children }: Props) {
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <NaverMapView
@@ -36,14 +24,9 @@ export function LiveMapView({
           userCoordinate
             ? { isVisible: true, position: userCoordinate }
             : undefined
-        }
-        onTapMap={onMapPress}
-        {...mapProps}>
+        }>
         {children}
       </NaverMapView>
-      {!solo && (
-        <View pointerEvents="none" style={[styles.veil, styles.veilTogether]} />
-      )}
     </View>
   );
 }
@@ -54,11 +37,5 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFill,
-  },
-  veil: {
-    ...StyleSheet.absoluteFill,
-  },
-  veilTogether: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
 });

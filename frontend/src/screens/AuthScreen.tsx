@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -145,7 +144,7 @@ export function AuthScreen() {
               setPassword(text);
               setPasswordTouched(true);
             }}
-            placeholder="8~64자, 영문·숫자·기호 중 2종 이상"
+            placeholder={`${MIN_LENGTH}~${MAX_LENGTH}자, 영문·숫자·기호 중 2종 이상`}
             secureTextEntry
             autoCapitalize="none"
           />
@@ -192,15 +191,11 @@ export function AuthScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.actions}>
-          {submitting ? (
-            <ActivityIndicator color={theme.colors.primary} size="large" />
-          ) : (
-            <AppButton
-              label={isSignup ? '회원가입' : '로그인'}
-              onPress={submit}
-              variant="accent"
-            />
-          )}
+          <AppButton
+            label={isSignup ? '회원가입' : '로그인'}
+            onPress={submit}
+            loading={submitting}
+          />
           <Pressable
             accessibilityRole="button"
             onPress={toggleMode}
@@ -261,19 +256,18 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   brand: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.caption,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: '900',
+    color: theme.colors.primary,
   },
   title: {
+    ...theme.text.display,
     color: theme.colors.text,
-    fontSize: theme.typography.title,
-    fontWeight: '900',
   },
   subtitle: {
+    ...theme.text.body,
     color: theme.colors.muted,
-    fontSize: theme.typography.body,
-    lineHeight: 22,
   },
   form: {
     gap: theme.spacing.md,
@@ -283,24 +277,22 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   fieldLabel: {
+    ...theme.text.label,
     color: theme.colors.text,
-    fontSize: theme.typography.caption,
-    fontWeight: '800',
   },
   input: {
-    minHeight: 52,
-    borderRadius: theme.radius.lg,
+    minHeight: 50,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
     paddingHorizontal: theme.spacing.md,
     color: theme.colors.text,
-    fontSize: theme.typography.body,
+    ...theme.text.body,
   },
   error: {
+    ...theme.text.caption,
     color: theme.colors.danger,
-    fontSize: theme.typography.caption,
-    fontWeight: '700',
   },
   passwordChecklist: {
     gap: theme.spacing.xs,
@@ -312,16 +304,15 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   checklistGlyph: {
+    ...theme.text.label,
     color: theme.colors.subtle,
-    fontSize: theme.typography.caption,
-    fontWeight: '800',
   },
   checklistGlyphOk: {
     color: theme.colors.success,
   },
   checklistLabel: {
+    ...theme.text.caption,
     color: theme.colors.muted,
-    fontSize: theme.typography.caption,
   },
   checklistLabelOk: {
     color: theme.colors.success,
@@ -335,9 +326,8 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   toggleText: {
+    ...theme.text.label,
     color: theme.colors.primary,
-    fontSize: theme.typography.caption,
-    fontWeight: '800',
   },
   pressed: {
     opacity: 0.7,

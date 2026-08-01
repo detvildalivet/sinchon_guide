@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,10 +8,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
+import { EmptyState } from '../components/EmptyState';
+import { Icon } from '../components/Icon';
 import { IconButton } from '../components/IconButton';
 import { OpenStatusBadge } from '../components/OpenStatusBadge';
 import { PlaceMeta } from '../components/PlaceMeta';
 import { RatingStars } from '../components/RatingStars';
+import { Skeleton } from '../components/Skeleton';
 import { TouchableFade } from '../components/TouchableFade';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
@@ -196,54 +198,58 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
         { paddingTop: insets.top + theme.spacing.xl, paddingBottom: insets.bottom + theme.spacing.xl },
       ]}>
       <View style={styles.header}>
-        <IconButton label="방문 기록" icon="☰" onPress={onOpenHistory} />
+        <Text style={styles.brand}>Sinchon Guide</Text>
+        <IconButton label="방문 기록" name="menu" onPress={onOpenHistory} />
       </View>
 
       {step === 'type' && (
-        <View style={[shellStyles.promptBox, styles.panel]}>
-          <Text style={styles.question}>무엇이 필요하십니까?</Text>
-          <TextInput
-            style={styles.input}
-            value={freeText}
-            onChangeText={setFreeText}
-            placeholder="예: 당구장, 헬스장, 조용한 카페 등"
-            placeholderTextColor={theme.colors.muted}
-            editable={!classifying}
-            onSubmitEditing={submitFreeText}
-            returnKeyType="search"
-          />
-          {classifying ? (
-            <ActivityIndicator color={theme.colors.primary} />
-          ) : (
-            <AppButton label="찾기" variant="accent" onPress={submitFreeText} />
-          )}
-
-          {typeError && <Text style={styles.errorText}>{typeError}</Text>}
+        <View style={styles.typeBlock}>
+          <Text style={styles.question}>어떤 곳을 찾으십니까?</Text>
+          <View style={[shellStyles.card, styles.panel]}>
+            <TextInput
+              style={styles.input}
+              value={freeText}
+              onChangeText={setFreeText}
+              placeholder="예: 당구장, 헬스장, 조용한 카페 등"
+              placeholderTextColor={theme.colors.subtle}
+              editable={!classifying}
+              onSubmitEditing={submitFreeText}
+              returnKeyType="search"
+            />
+            <AppButton label="찾기" loading={classifying} onPress={submitFreeText} />
+            {typeError && <Text style={styles.errorText}>{typeError}</Text>}
+          </View>
         </View>
       )}
 
       {step === 'result' && (
-        <View style={[shellStyles.promptBox, styles.panel]}>
+        <View style={[shellStyles.card, styles.panel]}>
           {loading ? (
-            <ActivityIndicator color={theme.colors.primary} size="large" />
+            <View style={styles.panel}>
+              <Skeleton width="60%" height={22} />
+              <Skeleton width="40%" height={16} />
+              <Skeleton width="100%" height={50} radius={theme.radius.pill} />
+              <Skeleton width="100%" height={56} style={styles.skeletonRow} />
+              <Skeleton width="100%" height={56} style={styles.skeletonRow} />
+            </View>
           ) : error ? (
-            <>
-              <Text style={styles.question}>문제가 생겼습니다</Text>
-              <Text style={styles.description}>{error}</Text>
-              <View style={styles.actions}>
-                <AppButton label="다시 시도" onPress={retry} />
-                <AppButton label="처음부터" variant="ghost" onPress={startOver} />
-              </View>
-            </>
+            <EmptyState icon="search" title="문제가 생겼습니다" description={error}>
+              <AppButton label="다시 시도" onPress={retry} />
+              <AppButton label="처음부터" variant="ghost" onPress={startOver} />
+            </EmptyState>
           ) : hero ? (
             <>
-              <Text style={styles.eyebrow}>추천 장소</Text>
+              <View style={styles.eyebrowPill}>
+                <Text style={styles.eyebrow}>추천 장소</Text>
+              </View>
               <Text style={styles.placeName}>{hero.name}</Text>
-              <RatingStars rating={hero.rating} ratingCount={hero.ratingCount} />
-              <OpenStatusBadge openNow={hero.openNow} />
+              <View style={styles.metaRow}>
+                <RatingStars rating={hero.rating} ratingCount={hero.ratingCount} />
+                <OpenStatusBadge openNow={hero.openNow} />
+              </View>
               <PlaceMeta distanceMinutes={hero.distanceMinutes} category={hero.category} />
               <View style={styles.actions}>
-                <AppButton label="이 장소로 안내" variant="accent" onPress={() => guideTo(hero)} />
+                <AppButton label="이 장소로 안내" onPress={() => guideTo(hero)} />
                 <AppButton label="처음부터" variant="ghost" onPress={startOver} />
               </View>
 
@@ -266,17 +272,19 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
                         <RatingStars rating={candidate.rating} ratingCount={candidate.ratingCount} />
                       </View>
                       <OpenStatusBadge openNow={candidate.openNow} />
+                      <Icon name="forward" size={16} color={theme.colors.subtle} />
                     </TouchableFade>
                   ))}
                 </View>
               )}
             </>
           ) : (
-            <>
-              <Text style={styles.question}>근처에 마땅한 곳이 없습니다</Text>
-              <Text style={styles.description}>다른 종류로 찾아보시겠습니까?</Text>
+            <EmptyState
+              icon="search"
+              title="근처에 마땅한 곳이 없습니다"
+              description="다른 종류로 찾아보시겠습니까?">
               <AppButton label="처음부터" onPress={startOver} />
-            </>
+            </EmptyState>
           )}
         </View>
       )}
@@ -287,82 +295,102 @@ export function AskScreen({ onGuide, onOpenHistory, resetToken }: Props) {
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: theme.spacing.lg,
   },
   panel: {
-    gap: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  // Fills the remaining height below the header and centers the headline +
+  // card in it, biased above true center via paddingBottom (an "optical
+  // center" reads better than dead-center on tall phones).
+  typeBlock: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: '20%',
   },
   question: {
+    ...theme.text.display,
     color: theme.colors.text,
-    fontSize: theme.typography.title,
-    lineHeight: 36,
-    fontWeight: '900',
-  },
-  description: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body,
-    lineHeight: 24,
+    marginBottom: theme.spacing.md,
   },
   input: {
-    minHeight: 52,
-    borderRadius: theme.radius.lg,
+    minHeight: 50,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
     paddingHorizontal: theme.spacing.md,
     color: theme.colors.text,
-    fontSize: theme.typography.body,
+    ...theme.text.body,
   },
   errorText: {
+    ...theme.text.caption,
     color: theme.colors.danger,
-    fontSize: theme.typography.caption,
-    fontWeight: '700',
+  },
+  eyebrowPill: {
+    alignSelf: 'flex-start',
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    backgroundColor: theme.colors.primarySoft,
   },
   eyebrow: {
+    ...theme.text.micro,
     color: theme.colors.primary,
-    fontSize: theme.typography.caption,
-    fontWeight: '900',
   },
   placeName: {
+    ...theme.text.title,
     color: theme.colors.text,
-    fontSize: theme.typography.heading,
-    fontWeight: '900',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   actions: {
     gap: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: theme.spacing.md,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.lg,
+  },
+  brand: {
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: theme.colors.primary,
+  },
+  skeletonRow: {
+    marginTop: theme.spacing.xs,
   },
   candidateList: {
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
     marginTop: theme.spacing.sm,
   },
   candidateListTitle: {
+    ...theme.text.bodyStrong,
     color: theme.colors.text,
-    fontSize: theme.typography.body,
-    fontWeight: '800',
+    marginBottom: theme.spacing.xs,
   },
   candidateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.spacing.md,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.divider,
+    paddingVertical: theme.spacing.md,
   },
   candidateMain: {
     flex: 1,
     gap: theme.spacing.xs,
   },
   candidateName: {
+    ...theme.text.bodyStrong,
     color: theme.colors.text,
-    fontSize: theme.typography.body,
-    fontWeight: '800',
   },
 });

@@ -1,7 +1,7 @@
 """Tests for the password policy (services/password.py) and where it's
 enforced (routers/users.py's register()).
 
-Policy under test (settled during brainstorming): 8-64 characters, at least
+Policy under test (settled during brainstorming): 8-20 characters, at least
 2 of 3 character classes (letter/digit/symbol) — see the module docstring
 in services/password.py for the full reasoning, including why "letter"
 means any Unicode letter rather than ASCII-only.

@@ -1,14 +1,5 @@
 from datetime import datetime
-from sqlalchemy import (
-    Column,
-    Date,
-    DateTime,
-    Float,
-    ForeignKey,
-    Integer,
-    JSON,
-    String,
-)
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -67,25 +58,3 @@ class HistoryClear(Base):
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     cleared_at = Column(DateTime, nullable=False)
-
-
-class PlaceAnnotation(Base):
-    """Thin server-side cache/annotation layer keyed by the search provider's
-    place_id (Kakao's `id`).
-
-    Deliberately NOT a full mirror of Sinchon's places — only rows for places
-    that have actually surfaced in a recommendation get cached here. Basic
-    fields are refreshed opportunistically (last_fetched); curated_tags is the
-    slot for hand-tuned personalization signals Kakao's API can't supply
-    (Kakao has no rating/open-now data on its own — see services/places.py;
-    rating is filled in by services/enrichment.py's Google Places pass).
-    """
-    __tablename__ = "place_annotations"
-
-    place_id = Column(String, primary_key=True)  # Kakao place id
-    name = Column(String, nullable=False)
-    lat = Column(Float, nullable=False)
-    lng = Column(Float, nullable=False)
-    rating = Column(Float, nullable=True)
-    curated_tags = Column(JSON, default=list, nullable=False)
-    last_fetched = Column(DateTime, default=datetime.utcnow, nullable=False)

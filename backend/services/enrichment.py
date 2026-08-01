@@ -1,40 +1,24 @@
 """Google Places API (New) enrichment.
 
 Kakao Local (services/places.py) supplies place *breadth* but no rating or
-open-now data — neither Kakao nor Naver expose that via public API. This
-module fills those two fields in for the nearest candidates only, by
-calling Google's Text Search endpoint once per candidate and matching the
-result back to the Kakao place by proximity + name. Google is used here
-strictly as an enrichment source, not for search breadth, routing, or map
-tiles — those stay on Kakao/TMAP/Naver respectively (see CLAUDE.md).
-
-Price level was also fetched here originally (feeding a budget-fit
-tiebreaker in services/recommendation.py and a budget question in
-AskScreen), but was removed after live testing showed Google's `priceLevel`
-field is too sparse (about 1 in 12 Sinchon candidates ever had one) and the
-tiebreaker's weight too small to meaningfully change results — asking users
-for a budget that essentially never changed their recommendation wasn't
-worth it. See CLAUDE.md's AskScreen bullet for the full story.
+open-now data. This module fills those two fields in for the nearest
+candidates only, by calling Google's Text Search endpoint once per candidate
+and matching the result back to the Kakao place by proximity + name.
 
 Enrichment is deliberately fail-soft per candidate: a network error, an
 empty result, or an implausible match all just leave that candidate's
-rating/open_now at None (their pre-enrichment default), the same as if
-Google had never been called. Only a missing/misconfigured
-GOOGLE_PLACES_API_KEY aborts the whole call (via require_google_key(),
-mirroring require_kakao_key()/require_tmap_key()) — that's a config error,
-not a per-place lookup miss.
+rating/open_now at None (their pre-enrichment default). Only a
+missing/misconfigured GOOGLE_PLACES_API_KEY aborts the whole call (a config
+error, not a per-place lookup miss).
 
 The Google API key lives only here; it is never shipped to the client.
 """
 import re
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from typing import Optional
 
 import httpx
-from sqlalchemy.orm import Session
 
-from models import PlaceAnnotation
 from services.api_errors import require_google_key
 from services.recommendation import haversine_meters
 
@@ -151,27 +135,7 @@ def _search_text_for_candidate(
     return google_place
 
 
-def _persist_annotation(db: Session, candidate: dict) -> None:
-    """Cache rating onto the candidate's existing PlaceAnnotation row
-    (created by services.places.search_nearby). open_now is time-sensitive
-    and intentionally not cached; price_level is no longer fetched at all
-    (see module docstring) so it's left untouched here — it stays whatever
-    services.places.search_nearby already set it to (always None). Never
-    creates a row itself — only search_nearby owns row creation."""
-    row: Optional[PlaceAnnotation] = (
-        db.query(PlaceAnnotation)
-        .filter(PlaceAnnotation.place_id == candidate["place_id"])
-        .first()
-    )
-    if row is None:
-        return
-    row.rating = candidate["rating"]
-    row.last_fetched = datetime.utcnow()
-
-
-def enrich_candidates(
-    db: Session, candidates: list[dict], top_n: int = DEFAULT_TOP_N
-) -> None:
+def enrich_candidates(candidates: list[dict], top_n: int = DEFAULT_TOP_N) -> None:
     """Enrich the top_n nearest candidates in place with rating/open_now via
     Google Text Search, run concurrently (one request per candidate — Text
     Search has no batch endpoint, and 8 sequential ~5s calls would make
@@ -213,6 +177,3 @@ def enrich_candidates(
                 candidate["rating"] = parsed["rating"]
                 candidate["open_now"] = parsed["open_now"]
                 candidate["rating_count"] = parsed["rating_count"]
-                _persist_annotation(db, candidate)
-
-    db.commit()

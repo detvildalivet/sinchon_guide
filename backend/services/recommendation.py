@@ -1,19 +1,11 @@
 """Pure scoring/ranking of Places candidates against a user's Need.
 
-Deliberately has no DB/network access — it's a plain function over plain
-data (candidate dicts + Need + visit counts), which keeps it trivially
-testable (see backend/tests/test_recommendation.py) the same way the old
-score_menu() was testable before this rebuild.
+No DB/network access — a plain function over plain data (candidate dicts +
+visit counts), trivially testable (see tests/test_recommendation.py).
 
-Ranking policy (settled during brainstorming): CLOSEST-FIRST. Walking
-distance dominates the score; rating and visit-history personalization only
-matter as near-tie breakers. A place that's currently closed always ranks
-below one that's open.
-
-(Budget/price-level was tried as a third tiebreaker and removed — see
-CLAUDE.md's AskScreen bullet. Live testing showed Google's priceLevel field
-is too sparse and the tiebreaker weight too small, relative to distance and
-rating, to meaningfully change results in practice.)
+Ranking policy: CLOSEST-FIRST. Walking distance dominates the score; rating
+and visit-history personalization only matter as near-tie breakers. A place
+that's currently closed always ranks below one that's open.
 """
 import math
 from typing import Optional
@@ -50,7 +42,6 @@ def _reason(distance_minutes: int) -> str:
 
 def score_candidates(
     candidates: list[dict],
-    need_type: str,
     user_lat: float,
     user_lng: float,
     visit_counts_by_place: Optional[dict[str, int]] = None,

@@ -48,7 +48,6 @@ type Route = 'ask' | 'guide' | 'history';
 function AppContent() {
   const [route, setRoute] = useState<Route>('ask');
   const [picked, setPicked] = useState<Recommendation | null>(null);
-  const [need, setNeed] = useState<Need | null>(null);
   const [hasOpenedHistory, setHasOpenedHistory] = useState(false);
   // Counter (not boolean) passed to AskScreen as resetToken: incrementing it
   // is how goHome() below tells the always-mounted AskScreen to reset itself
@@ -58,7 +57,6 @@ function AppContent() {
 
   const openGuide = (place: Recommendation, chosenNeed: Need) => {
     setPicked(place);
-    setNeed(chosenNeed);
     setRoute('guide');
 
     // Record the visit as soon as the user commits to being guided to this
@@ -99,7 +97,7 @@ function AppContent() {
     <View style={[styles.container, layoutStyles.screen]}>
       <AskScreen onGuide={openGuide} onOpenHistory={openHistory} resetToken={askResetToken} />
       <CrossfadeSwitch visible={route === 'guide'}>
-        {picked && need && <GuideScreen place={picked} onBack={backToAsk} onGoHome={goHome} />}
+        {picked && <GuideScreen place={picked} onBack={backToAsk} onGoHome={goHome} />}
       </CrossfadeSwitch>
       <CrossfadeSwitch visible={route === 'history'}>
         {hasOpenedHistory && (

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -10,6 +9,7 @@ import {
 import { NaverMapPathOverlay } from '@mj-studio/react-native-naver-map';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
+import { IconButton } from '../components/IconButton';
 import { LiveMapView } from '../components/LiveMapView';
 import { MapMarkerPin } from '../components/MapMarkerPin';
 import { OpenStatusBadge } from '../components/OpenStatusBadge';
@@ -28,7 +28,7 @@ type Props = {
   onGoHome: () => void;
 };
 
-const PIN_SIZE = 20; // must match styles.pin's width/height below
+const PIN_SIZE = 26; // must match styles.pinHalo's width/height below
 
 export function GuideScreen({ place, onBack, onGoHome }: Props) {
   const insets = useSafeAreaInsets();
@@ -150,9 +150,14 @@ export function GuideScreen({ place, onBack, onGoHome }: Props) {
           <ActivityIndicator color={theme.colors.primary} size="large" />
         </View>
       ) : (
-        <LiveMapView region={region} userCoordinate={userCoord} variant="solo">
+        <LiveMapView region={region} userCoordinate={userCoord}>
           <MapMarkerPin coordinate={placeCoord} width={PIN_SIZE} height={PIN_SIZE}>
-            <View style={styles.pin} collapsable={false} />
+            {/* Squared off (vs. the round blue start dot) plus a faint amber
+                halo, so "there" reads as clearly distinct from "here" by
+                shape, not just color. */}
+            <View style={styles.pinHalo} collapsable={false}>
+              <View style={styles.pinCore} />
+            </View>
           </MapMarkerPin>
           {routeCoords.length > 1 && (
             <NaverMapPathOverlay
@@ -164,31 +169,24 @@ export function GuideScreen({ place, onBack, onGoHome }: Props) {
         </LiveMapView>
       )}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="다시 추천받기"
-        onPress={onBack}
-        style={[shellStyles.promptPanel, styles.backTag, { top: insets.top + theme.spacing.md }]}>
-        <Text style={styles.backTagText}>{'< 다시 추천받기'}</Text>
-      </Pressable>
+      <View style={[styles.backTag, { top: insets.top + theme.spacing.md }]}>
+        <IconButton label="다시 추천받기" name="back" variant="floating" onPress={onBack} />
+      </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="처음 화면으로 이동"
-        onPress={onGoHome}
-        style={[shellStyles.promptPanel, styles.homeTag, { top: insets.top + theme.spacing.md }]}>
-        <Text style={styles.homeIcon}>⌂</Text>
-      </Pressable>
+      <View style={[styles.homeTag, { top: insets.top + theme.spacing.md }]}>
+        <IconButton label="처음 화면으로 이동" name="home" variant="floating" onPress={onGoHome} />
+      </View>
 
       <View
         style={[
           shellStyles.bottomPanel,
-          styles.card,
           { paddingBottom: insets.bottom + theme.spacing.sm },
         ]}>
         <Text style={styles.placeName}>{place.name}</Text>
-        <RatingStars rating={place.rating} ratingCount={place.ratingCount} />
-        <OpenStatusBadge openNow={place.openNow} />
+        <View style={styles.metaRow}>
+          <RatingStars rating={place.rating} ratingCount={place.ratingCount} />
+          <OpenStatusBadge openNow={place.openNow} />
+        </View>
         <PlaceMeta
           distanceMinutes={place.distanceMinutes}
           category={place.category}
@@ -201,7 +199,6 @@ export function GuideScreen({ place, onBack, onGoHome }: Props) {
         ) : null}
         <AppButton
           label="네이버 지도로 안내"
-          variant="accent"
           onPress={openInNaverMap}
           style={styles.action}
         />
@@ -223,54 +220,41 @@ const styles = StyleSheet.create({
   backTag: {
     position: 'absolute',
     left: theme.spacing.lg,
-    right: undefined,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
   },
   homeTag: {
     position: 'absolute',
-    left: undefined,
     right: theme.spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-  },
-  homeIcon: {
-    color: theme.colors.primary,
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  backTagText: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.caption,
-    fontWeight: '900',
-  },
-  card: {
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.96)',
-    borderColor: 'rgba(255, 255, 255, 0.98)',
-    gap: theme.spacing.xs,
   },
   placeName: {
+    ...theme.text.title,
     color: theme.colors.text,
-    fontSize: theme.typography.heading,
-    fontWeight: '900',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   errorText: {
+    ...theme.text.caption,
     color: theme.colors.danger,
-    fontSize: theme.typography.caption,
-    fontWeight: '700',
   },
   action: {
     marginTop: theme.spacing.md,
   },
-  pin: {
+  pinHalo: {
     width: PIN_SIZE,
     height: PIN_SIZE,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.accent,
+    borderRadius: 6,
+    backgroundColor: 'rgba(245, 165, 36, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinCore: {
+    width: 16,
+    height: 16,
+    borderRadius: 3,
+    backgroundColor: theme.colors.star,
     borderWidth: 3,
-    borderColor: theme.colors.primary,
+    borderColor: theme.colors.surface,
   },
 });

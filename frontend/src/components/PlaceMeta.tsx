@@ -30,12 +30,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   line: {
+    ...theme.text.label,
     color: theme.colors.muted,
-    fontSize: theme.typography.caption,
-    fontWeight: '700',
   },
   address: {
+    ...theme.text.caption,
     color: theme.colors.subtle,
-    fontSize: theme.typography.caption,
   },
 });

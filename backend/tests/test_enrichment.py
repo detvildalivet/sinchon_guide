@@ -1,13 +1,8 @@
 """Tests for the Google Places enrichment pass.
 
-Pure-function tests (match-plausibility, response parsing) need no network
-or DB. enrich_candidates() itself is tested with the network call
-monkeypatched and a minimal fake DB session, to verify it degrades
-gracefully (leaves fields None) rather than raising.
-
-(price_level was fetched/mapped here originally but was removed after live
-testing showed it too sparse to matter — see services/enrichment.py's
-module docstring.)
+Pure-function tests (match-plausibility, response parsing) need no network.
+enrich_candidates() itself is tested with the network call monkeypatched, to
+verify it degrades gracefully (leaves fields None) rather than raising.
 """
 import sys
 from pathlib import Path
@@ -108,22 +103,6 @@ def test_parse_missing_fields_all_become_none():
 # ---------- enrich_candidates (network call monkeypatched) ----------
 
 
-class _FakeQuery:
-    def filter(self, *args, **kwargs):
-        return self
-
-    def first(self):
-        return None  # no cached PlaceAnnotation row -> _persist_annotation is a no-op
-
-
-class _FakeSession:
-    def query(self, *args, **kwargs):
-        return _FakeQuery()
-
-    def commit(self):
-        pass
-
-
 def test_enrich_candidates_fills_fields_on_match(monkeypatch):
     monkeypatch.setattr(enrichment, "require_google_key", lambda: "fake-key")
     matched_place = _google_place(
@@ -134,7 +113,7 @@ def test_enrich_candidates_fills_fields_on_match(monkeypatch):
     )
 
     candidates = [_candidate(place_id="p1")]
-    enrich_candidates(_FakeSession(), candidates)
+    enrich_candidates(candidates)
 
     assert candidates[0]["rating"] == 4.5
     assert candidates[0]["open_now"] is True
@@ -148,7 +127,7 @@ def test_enrich_candidates_leaves_fields_none_on_no_match(monkeypatch):
     )
 
     candidates = [_candidate(place_id="p1")]
-    enrich_candidates(_FakeSession(), candidates)
+    enrich_candidates(candidates)
 
     assert candidates[0]["rating"] is None
     assert candidates[0]["open_now"] is None
@@ -163,7 +142,7 @@ def test_enrich_candidates_only_touches_top_n(monkeypatch):
     )
 
     candidates = [_candidate(place_id=f"p{i}") for i in range(5)]
-    enrich_candidates(_FakeSession(), candidates, top_n=2)
+    enrich_candidates(candidates, top_n=2)
 
     assert candidates[0]["rating"] == 5.0
     assert candidates[1]["rating"] == 5.0
@@ -174,7 +153,7 @@ def test_enrich_candidates_only_touches_top_n(monkeypatch):
 
 def test_enrich_candidates_no_candidates_is_a_noop(monkeypatch):
     monkeypatch.setattr(enrichment, "require_google_key", lambda: "fake-key")
-    enrich_candidates(_FakeSession(), [])  # must not raise
+    enrich_candidates([])  # must not raise
 
 
 # ---------- fail-soft: a 2xx response with a non-JSON body must not raise ----------
@@ -217,7 +196,7 @@ def test_enrich_candidates_survives_a_worker_exception(monkeypatch):
     monkeypatch.setattr(enrichment, "_search_text_for_candidate", _raise)
 
     candidates = [_candidate(place_id="p1")]
-    enrich_candidates(_FakeSession(), candidates)  # must not raise
+    enrich_candidates(candidates)  # must not raise
 
     assert candidates[0]["rating"] is None
     assert candidates[0]["open_now"] is None

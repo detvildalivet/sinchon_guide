@@ -1,36 +1,13 @@
-"""Kakao Local API integration.
-
-This is the app's only source of place breadth — the server does not own a
-place catalog. It queries Kakao's category/keyword search around the user's
-location and caches a thin PlaceAnnotation row per result (see
-models.PlaceAnnotation) so future personalization signals (curated tags,
-visit history) have somewhere to live without mirroring all of Sinchon.
-
-Was Google Places API (New) — moved to Kakao because Google's IP-restricted
-key kept breaking on IP changes, and this session's research found no viable
-Naver substitute: NCP's Maps product family has no place/POI search API at
-all, and Naver's own Local Search API (a different Naver platform) is
-keyword-only with no coordinate/radius filter and a 5-result cap. Kakao's
-category+radius search is the structural analog to Google's searchNearby.
-
-Trade-off: Kakao's response has no rating, price-level, or open-now field —
-unlike Google Places, neither Kakao nor Naver expose that data via public
-API. `services/recommendation.py`'s scorer already treats those fields as
-Optional with neutral defaults, so this degrades ranking to closest-first +
-visit-history rather than breaking anything; see CLAUDE.md for the full
-reasoning and why AskScreen no longer asks for a budget.
+"""Kakao Local API integration — the app's only source of place breadth.
 
 The Kakao REST API key lives only here; it is never shipped to the client.
 Read lazily (at call time, not import time) via api_errors.require_kakao_key()
 so the app still boots and tests still run without KAKAO_REST_API_KEY set.
 """
-from datetime import datetime
-from typing import Optional
+from typing import Callable, Optional
 
 import httpx
-from sqlalchemy.orm import Session
 
-from models import PlaceAnnotation
 from services.api_errors import request_external_api, require_kakao_key
 
 CATEGORY_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/category.json"
@@ -46,11 +23,9 @@ KAKAO_PAGE_SIZE = 15  # Kakao's per-page max (1-15); one page is plenty at this 
 # of the FD6/CE7 groups, not their own codes) use the keyword endpoint to
 # narrow within that group.
 #
-# category_name_must_include mirrors the old _matches_need_type Google
-# primaryType check — same defensive purpose (Nearby Search's includedTypes
-# matched a place's whole types list, not just its primary type, so a
-# McDonald's could slip into "cafe" results; Kakao's broad FD6/CE7 groups
-# have the same failure mode, e.g. a cafe surfacing under a "meal" search).
+# category_name_must_include/_exclude defensively re-verify Kakao's broad
+# FD6/CE7 category groups: a McDonald's or cafe can otherwise slip into the
+# wrong need type's results.
 NEED_TYPE_CONFIG: dict[str, dict] = {
     "meal": {
         "category_group_code": "FD6",
@@ -81,10 +56,7 @@ NEED_TYPE_CONFIG: dict[str, dict] = {
 
 def _matches_need_type(category_name: Optional[str], need_type: str) -> bool:
     """Post-filter Kakao's `category_name` (a '대분류 > 중분류 > ...' breadcrumb
-    string) against the need type's expected subcategory, the same way the
-    old Google-era check re-verified primaryType instead of trusting the
-    request filter alone.
-    """
+    string) against the need type's expected subcategory."""
     if category_name is None:
         return False
     config = NEED_TYPE_CONFIG[need_type]
@@ -109,25 +81,63 @@ def _short_category(category_name: Optional[str]) -> Optional[str]:
     return last or None
 
 
-def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[dict]:
+def _query_kakao(
+    url: str,
+    params: dict,
+    category_filter: Optional[Callable[[Optional[str]], bool]] = None,
+) -> list[dict]:
+    """Shared Kakao Local call + response-to-candidate-dict transform, used
+    by both the curated category/keyword path and the open keyword path.
+
+    rating/open_now are always None here — Kakao doesn't provide them;
+    services/enrichment.py fills them in for the nearest few candidates.
+    category/address come straight from Kakao's response (see
+    _short_category). category_filter, when given, drops results that don't
+    match a need type's expected subcategory (see _matches_need_type); the
+    open keyword path passes none, trusting Kakao's own relevance ranking
+    since there's no fixed category to check an arbitrary keyword against.
+    """
+    headers = {"Authorization": f"KakaoAK {require_kakao_key()}"}
+
+    with httpx.Client(timeout=10.0) as client:
+        response = request_external_api(
+            client, "GET", url, "Kakao Local API", params=params, headers=headers
+        )
+        data = response.json()
+
+    candidates: list[dict] = []
+    for place in data.get("documents", []):
+        category_name = place.get("category_name")
+        if category_filter is not None and not category_filter(category_name):
+            continue
+        candidates.append(
+            {
+                "place_id": place["id"],
+                "name": place.get("place_name", "이름 없음"),
+                "lat": float(place["y"]),
+                "lng": float(place["x"]),
+                "rating": None,
+                "open_now": None,
+                "category": _short_category(category_name),
+                "address": place.get("road_address_name") or place.get("address_name") or None,
+            }
+        )
+    return candidates
+
+
+def search_nearby(lat: float, lng: float, need_type: str) -> list[dict]:
     """Query Kakao Local for candidates around (lat, lng).
 
     need_type is an open string, not a closed enum (see schemas.NeedIn):
     one of the 4 curated types below gets Kakao's dedicated category-code
-    search; anything else — an arbitrary Korean keyword Claude extracted in
-    services/classify.py, e.g. "당구장" — is dispatched to _search_keyword
-    instead, a plain Kakao keyword search with no category restriction.
+    search; anything else — an arbitrary Korean keyword services/classify.py
+    extracted, e.g. "당구장" — is dispatched to _search_keyword instead, a
+    plain Kakao keyword search with no category restriction.
 
-    Returns a list of plain dicts: {place_id, name, lat, lng, rating,
-    open_now, category, address} — rating/open_now are always None here
-    (Kakao doesn't provide them; services/enrichment.py fills rating/open_now
-    in for the nearest few candidates), kept in the shape for schema/scorer
-    compatibility. category/address are real values straight from Kakao's
-    response (see _short_category), surfaced to the client via
-    RecommendationOut instead of being discarded as before.
+    Returns candidates sorted nearest-first (Kakao's sort=distance).
     """
     if need_type not in NEED_TYPE_CONFIG:
-        return _search_keyword(db, lat, lng, need_type)
+        return _search_keyword(lat, lng, need_type)
 
     config = NEED_TYPE_CONFIG[need_type]
     url = KEYWORD_SEARCH_URL if config["keyword"] else CATEGORY_SEARCH_URL
@@ -143,51 +153,16 @@ def search_nearby(db: Session, lat: float, lng: float, need_type: str) -> list[d
     if config["keyword"]:
         params["query"] = config["keyword"]
 
-    headers = {"Authorization": f"KakaoAK {require_kakao_key()}"}
-
-    with httpx.Client(timeout=10.0) as client:
-        response = request_external_api(
-            client, "GET", url, "Kakao Local API", params=params, headers=headers
-        )
-        data = response.json()
-
-    candidates: list[dict] = []
-    for place in data.get("documents", []):
-        category_name = place.get("category_name")
-        if not _matches_need_type(category_name, need_type):
-            continue
-        candidate = {
-            "place_id": place["id"],
-            "name": place.get("place_name", "이름 없음"),
-            "lat": float(place["y"]),
-            "lng": float(place["x"]),
-            "rating": None,
-            "open_now": None,
-            # Kakao's category_name is a '대분류 > 중분류 > 소분류' breadcrumb
-            # (e.g. "음식점 > 카페,디저트 > 카페") — the last segment is the
-            # closest thing to a user-facing category label. Kept only for
-            # display; _matches_need_type above already used the full string.
-            "category": _short_category(category_name),
-            "address": place.get("road_address_name") or place.get("address_name") or None,
-        }
-        candidates.append(candidate)
-        _upsert_annotation(db, candidate)
-
-    db.commit()
-    return candidates
+    return _query_kakao(
+        url, params, category_filter=lambda name: _matches_need_type(name, need_type)
+    )
 
 
-def _search_keyword(db: Session, lat: float, lng: float, keyword: str) -> list[dict]:
+def _search_keyword(lat: float, lng: float, keyword: str) -> list[dict]:
     """Open-ended search for anything outside the 4 curated need types (see
     NEED_TYPE_CONFIG) — e.g. "당구장", "헬스장", extracted by
     services/classify.py from free text that didn't match one of the
-    curated categories. Hits Kakao's keyword endpoint directly with no
-    category_group_code and no _matches_need_type post-filter: there's no
-    fixed target category to defensively check an arbitrary keyword
-    against, so Kakao's own relevance ranking is the only filter. Builds
-    the same candidate dict shape as search_nearby's curated path, so
-    services/enrichment.py and services/recommendation.py need no changes.
-    """
+    curated categories."""
     params = {
         "query": keyword,
         "x": lng,
@@ -196,49 +171,4 @@ def _search_keyword(db: Session, lat: float, lng: float, keyword: str) -> list[d
         "size": KAKAO_PAGE_SIZE,
         "sort": "distance",
     }
-    headers = {"Authorization": f"KakaoAK {require_kakao_key()}"}
-
-    with httpx.Client(timeout=10.0) as client:
-        response = request_external_api(
-            client, "GET", KEYWORD_SEARCH_URL, "Kakao Local API", params=params, headers=headers
-        )
-        data = response.json()
-
-    candidates: list[dict] = []
-    for place in data.get("documents", []):
-        candidate = {
-            "place_id": place["id"],
-            "name": place.get("place_name", "이름 없음"),
-            "lat": float(place["y"]),
-            "lng": float(place["x"]),
-            "rating": None,
-            "open_now": None,
-            "category": _short_category(place.get("category_name")),
-            "address": place.get("road_address_name") or place.get("address_name") or None,
-        }
-        candidates.append(candidate)
-        _upsert_annotation(db, candidate)
-
-    db.commit()
-    return candidates
-
-
-def _upsert_annotation(db: Session, candidate: dict) -> None:
-    """Upsert the place's identity/location fields only. `rating` is owned by
-    services.enrichment._persist_annotation (Google is the only source for
-    it) — writing candidate["rating"] here, which is always None at this
-    point in the pipeline (see search_nearby's docstring), would blank out
-    whatever enrichment wrote on every subsequent search."""
-    row: Optional[PlaceAnnotation] = (
-        db.query(PlaceAnnotation)
-        .filter(PlaceAnnotation.place_id == candidate["place_id"])
-        .first()
-    )
-    if row is None:
-        row = PlaceAnnotation(place_id=candidate["place_id"], curated_tags=[])
-        db.add(row)
-
-    row.name = candidate["name"]
-    row.lat = candidate["lat"]
-    row.lng = candidate["lng"]
-    row.last_fetched = datetime.utcnow()
+    return _query_kakao(KEYWORD_SEARCH_URL, params)

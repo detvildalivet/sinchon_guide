@@ -1,40 +1,17 @@
 """Free-text -> place-category classification via Gemini.
 
-This is the "ask what the user needs" -> "categorize the answer" step of the
-app's pipeline. AskScreen has no buttons at all — it's a pure LLM inquiry
-slot: the user describes where they want to go in their own words, and this
-module turns that into a category `services/places.py` can search Kakao
-with. Two kinds of category come out of it:
+Turns AskScreen's free-text input into either one of 4 curated types
+(meal/cafe/drinks/dessert — Kakao's dedicated category-code search) or an
+open Korean keyword Gemini extracts for anything else (e.g. "당구장"),
+routed to a plain Kakao keyword search instead. A single forced function
+call to Gemini's Flash-Lite tier decides which applies and extracts in one
+round trip.
 
-- One of 4 curated types (meal/cafe/drinks/dessert) — these get Kakao's
-  dedicated FD6/CE7 category-code search plus a defensive category-name
-  filter (see services/places.py's NEED_TYPE_CONFIG), which is materially
-  more accurate than a bare keyword search.
-- An open Korean place-type keyword Gemini extracts for anything else (e.g.
-  "당구장", "헬스장", "노래방") — routed to a plain Kakao keyword search with
-  no category restriction, since there's no fixed target category to filter
-  against.
+Model is pinned to the `-latest` alias, not a dated snapshot — dated
+snapshots 404 for accounts created after their cutoff.
 
-A single forced function call to Gemini's Flash-Lite tier — the cheapest
-current Gemini tier, free to use at this volume via Google AI Studio, and
-more than enough for this — decides which of the two applies and does the
-extraction in one round trip. (This used to be Claude Haiku 4.5; switched to
-Gemini so classification costs nothing to run.)
-
-Model is pinned to the `-latest` alias (`gemini-flash-lite-latest`), not a
-dated snapshot like `gemini-2.5-flash-lite` — that snapshot string is still
-listed by client.models.list() but returns a 404 ("no longer available to
-new users") for accounts created after its cutoff, which is exactly the
-kind of breakage the `-latest` alias exists to dodge.
-
-Deliberately fail-soft on anything except a missing/misconfigured API key:
-text that isn't really about finding a place, a network error, or any
-other API failure all return None rather than raising, so
-routers/classify.py never 500s. Since there's no button fallback, None
-means AskScreen shows an inline retry prompt on the same text field. Only
-require_gemini_key() aborts (a config error, not a per-request miss) —
-same split as services/enrichment.py's require_google_key() (a different
-Google product — Places API (New) — from this module's Gemini API).
+Fail-soft on anything except a missing/misconfigured API key: returns None
+rather than raising, so routers/classify.py never 500s.
 
 The Gemini API key lives only here; it is never shipped to the client.
 """

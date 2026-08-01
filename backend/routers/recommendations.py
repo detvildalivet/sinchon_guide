@@ -31,8 +31,8 @@ def recommend(
     visit history alone, same as before enrichment existed.
 
     """
-    candidates = search_nearby(db, need.lat, need.lng, need.type)
-    enrich_candidates(db, candidates)
+    candidates = search_nearby(need.lat, need.lng, need.type)
+    enrich_candidates(candidates)
 
     visit_rows = (
         db.query(Visit.place_id, func.count(Visit.id))
@@ -44,7 +44,6 @@ def recommend(
 
     ranked = score_candidates(
         candidates,
-        need_type=need.type,
         user_lat=need.lat,
         user_lng=need.lng,
         visit_counts_by_place=visit_counts_by_place,

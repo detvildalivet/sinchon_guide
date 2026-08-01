@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -10,6 +9,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
+import { EmptyState } from '../components/EmptyState';
+import { ICON_BUTTON_SIZE, IconButton } from '../components/IconButton';
+import { Skeleton } from '../components/Skeleton';
 import { shellStyles } from '../design/shellStyles';
 import { theme } from '../design/theme';
 import { useAuth } from '../auth/AuthContext';
@@ -117,30 +119,26 @@ export function HistoryScreen({ onBack, visible }: Props) {
 
   return (
     <View style={styles.root}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="돌아가기"
-        onPress={onBack}
-        style={[shellStyles.promptPanel, styles.backTag, { top: insets.top + theme.spacing.md }]}>
-        <Text style={styles.backTagText}>{'< 돌아가기'}</Text>
-      </Pressable>
+      <View style={[styles.backTag, { top: insets.top + theme.spacing.md }]}>
+        <IconButton label="돌아가기" name="back" onPress={onBack} />
+      </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: insets.top + theme.spacing.xxl + theme.spacing.xl,
+            paddingTop: insets.top + theme.spacing.md + ICON_BUTTON_SIZE + theme.spacing.lg,
             paddingBottom: insets.bottom + theme.spacing.xl,
           },
         ]}>
-        <View style={[shellStyles.promptBox, styles.panel]}>
+        <View style={[shellStyles.card, styles.panel]}>
           <Text style={styles.eyebrow}>내 계정</Text>
           <Text style={styles.nickname}>{user?.nickname ?? '-'}</Text>
           <Text style={styles.email}>{user?.email ?? ''}</Text>
           <AppButton label="로그아웃" variant="ghost" onPress={logout} />
         </View>
 
-        <View style={[shellStyles.promptBox, styles.panel]}>
+        <View style={[shellStyles.card, styles.panel]}>
           <View style={styles.panelHeader}>
             <Text style={styles.eyebrow}>방문 기록</Text>
             {!loading && visits.length > 0 && (
@@ -157,11 +155,19 @@ export function HistoryScreen({ onBack, visible }: Props) {
             )}
           </View>
           {loading ? (
-            <ActivityIndicator color={theme.colors.primary} />
+            <View style={styles.skeletonList}>
+              <Skeleton width="100%" height={40} />
+              <Skeleton width="100%" height={40} />
+              <Skeleton width="100%" height={40} />
+            </View>
           ) : error ? (
-            <Text style={styles.errorText}>{error}</Text>
+            <EmptyState icon="search" title="문제가 생겼습니다" description={error} />
           ) : visits.length === 0 ? (
-            <Text style={styles.description}>아직 방문 기록이 없습니다.</Text>
+            <EmptyState
+              icon="pin"
+              title="방문 기록이 없습니다"
+              description="장소를 추천받고 안내를 시작하면 여기에 기록됩니다."
+            />
           ) : (
             <View style={styles.list}>
               {visits.map((visit, index) => (
@@ -190,15 +196,7 @@ const styles = StyleSheet.create({
   backTag: {
     position: 'absolute',
     left: theme.spacing.lg,
-    right: undefined,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
     zIndex: 20,
-  },
-  backTagText: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.caption,
-    fontWeight: '900',
   },
   content: {
     paddingHorizontal: theme.spacing.lg,
@@ -213,32 +211,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   eyebrow: {
+    ...theme.text.label,
     color: theme.colors.primary,
-    fontSize: theme.typography.caption,
-    fontWeight: '900',
   },
   clearText: {
+    ...theme.text.caption,
     color: theme.colors.danger,
-    fontSize: theme.typography.caption,
-    fontWeight: '700',
   },
   nickname: {
+    ...theme.text.title,
     color: theme.colors.text,
-    fontSize: theme.typography.heading,
-    fontWeight: '900',
   },
   email: {
+    ...theme.text.body,
     color: theme.colors.muted,
-    fontSize: theme.typography.body,
   },
-  description: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body,
-    lineHeight: 24,
-  },
-  errorText: {
-    color: theme.colors.danger,
-    fontSize: theme.typography.body,
+  skeletonList: {
+    gap: theme.spacing.sm,
   },
   list: {
     gap: theme.spacing.md,
@@ -246,7 +235,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderTopColor: theme.colors.divider,
     paddingTop: theme.spacing.md,
   },
   rowMain: {
@@ -254,12 +243,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   placeName: {
+    ...theme.text.bodyStrong,
     color: theme.colors.text,
-    fontSize: theme.typography.body,
-    fontWeight: '800',
   },
   rowMeta: {
+    ...theme.text.caption,
     color: theme.colors.muted,
-    fontSize: theme.typography.caption,
   },
 });

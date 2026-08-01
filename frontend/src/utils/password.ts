@@ -4,12 +4,12 @@
  * Unicode letter, why whitespace counts as no class, why length is capped).
  * The two are kept in sync by hand; there is no shared source of truth.
  *
- * Policy: 8-64 characters, and at least 2 of 3 character classes present
+ * Policy: 8-20 characters, and at least 2 of 3 character classes present
  * (letter / digit / symbol).
  */
 
 export const MIN_LENGTH = 8;
-export const MAX_LENGTH = 64;
+export const MAX_LENGTH = 20;
 
 export type PasswordChecks = {
   length: boolean;

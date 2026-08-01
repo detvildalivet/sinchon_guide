@@ -33,13 +33,13 @@ export function OpenStatusBadge({ openNow }: Props) {
 
 const styles = StyleSheet.create({
   open: {
-    backgroundColor: '#E6F4EA',
+    backgroundColor: theme.colors.successSoft,
   },
   openText: {
-    color: '#1E7B34',
+    color: theme.colors.success,
   },
   closed: {
-    backgroundColor: '#FBE7E6',
+    backgroundColor: theme.colors.dangerSoft,
   },
   closedText: {
     color: theme.colors.danger,

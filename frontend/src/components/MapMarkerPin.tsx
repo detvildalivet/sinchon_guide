@@ -4,7 +4,6 @@ import { MapCoordinate } from '../services/locationService';
 
 type Props = {
   coordinate: MapCoordinate;
-  onPress?: () => void;
   // Required: a custom-View marker (as opposed to an image marker) has no
   // intrinsic size for the native side to measure on its own — without an
   // explicit width/height, NaverMapMarkerOverlay silently fails to render
@@ -14,15 +13,17 @@ type Props = {
   children: React.ReactNode;
 };
 
-export function MapMarkerPin({ coordinate, onPress, width, height, children }: Props) {
+export function MapMarkerPin({ coordinate, width, height, children }: Props) {
   return (
     <NaverMapMarkerOverlay
       latitude={coordinate.latitude}
       longitude={coordinate.longitude}
       width={width}
       height={height}
-      anchor={{ x: 0.5, y: 1 }}
-      onTap={onPress}>
+      // Centered anchor: the marker is a symmetric dot (matching the start
+      // dot's own construction), not a tip-down teardrop — so its center,
+      // not its bottom edge, should sit on the coordinate.
+      anchor={{ x: 0.5, y: 0.5 }}>
       {children}
     </NaverMapMarkerOverlay>
   );
