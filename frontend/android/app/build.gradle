@@ -78,6 +78,17 @@ if (envFile.exists()) {
     envFile.withInputStream { envProps.load(it) }
 }
 
+// Missing/blank naver_map_client_id previously fell back to '', which builds
+// and installs fine but renders blank map tiles at runtime with no error —
+// easy to mistake for a native-linking problem. Fail at configure time instead.
+def naverMapClientId = envProps.getProperty('naver_map_client_id')
+if (!naverMapClientId) {
+    throw new GradleException(
+        "naver_map_client_id is missing from frontend/.env — without it the " +
+        "Naver Maps SDK renders blank tiles at runtime with no build error. " +
+        "See CLAUDE.md's Providers section.")
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -91,7 +102,7 @@ android {
         versionCode 1
         versionName "1.0"
         manifestPlaceholders = [
-            GOOGLE_MAPS_API_KEY: envProps.getProperty('map_api_key_android', '')
+            NAVER_MAP_CLIENT_ID: naverMapClientId
         ]
     }
     // Windows hits MAX_PATH (260 chars) compiling New Architecture codegen C++

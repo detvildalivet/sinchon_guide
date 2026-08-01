@@ -4,6 +4,16 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- Android 11+ package visibility: without this, Linking.canOpenURL('nmap://...')
+         always returns false (even with Naver Map installed), so GuideScreen's
+         install-check for the walking-directions handoff would never detect it. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="nmap" />
+        </intent>
+    </queries>
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
@@ -14,8 +24,8 @@
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
       <meta-data
-        android:name="com.google.android.geo.API_KEY"
-        android:value="${GOOGLE_MAPS_API_KEY}" />
+        android:name="com.naver.maps.map.NCP_KEY_ID"
+        android:value="${NAVER_MAP_CLIENT_ID}" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

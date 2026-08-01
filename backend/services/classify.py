@@ -1,0 +1,112 @@
+"""Free-text -> place-category classification via Gemini.
+
+Turns AskScreen's free-text input into either one of 4 curated types
+(meal/cafe/drinks/dessert — Kakao's dedicated category-code search) or an
+open Korean keyword Gemini extracts for anything else (e.g. "당구장"),
+routed to a plain Kakao keyword search instead. A single forced function
+call to Gemini's Flash-Lite tier decides which applies and extracts in one
+round trip.
+
+Model is pinned to the `-latest` alias, not a dated snapshot — dated
+snapshots 404 for accounts created after their cutoff.
+
+Fail-soft on anything except a missing/misconfigured API key: returns None
+rather than raising, so routers/classify.py never 500s.
+
+The Gemini API key lives only here; it is never shipped to the client.
+"""
+from typing import Optional
+
+from google import genai
+from google.genai import types
+
+from services.api_errors import require_gemini_key
+
+MODEL = "gemini-flash-lite-latest"
+
+SYSTEM_PROMPT = """\
+사용자가 신촌 지역에서 어떤 곳을 찾고 있는지 분류하십시오.
+
+다음 네 가지 중 하나에 명확히 해당하면 type을 그 값으로 설정하십시오:
+- meal: 식사, 밥, 배고픔 관련
+- cafe: 카페, 커피, 공부/작업 공간 관련
+- drinks: 술 한잔, 술집, 안주 관련
+- dessert: 디저트, 빵, 아이스크림, 단 것 관련
+
+네 가지 중 어느 것에도 해당하지 않으면 type을 other로 설정하고, keyword에
+사용자가 찾는 장소 종류를 나타내는 짧은 한국어 명사를 넣으십시오 (예:
+"당구장", "헬스장", "노래방", "편의점"). 문장 전체가 아니라 지역 장소
+검색에 바로 쓸 수 있는 짧은 명사여야 합니다.
+
+사용자의 글이 장소를 찾는 요청인지조차 확실하지 않으면 type을 other로
+설정하고 keyword는 비워두십시오."""
+
+CLASSIFY_TOOL = types.Tool(
+    function_declarations=[
+        types.FunctionDeclaration(
+            name="classify_need",
+            description="사용자의 요청을 장소 카테고리로 분류합니다.",
+            parameters_json_schema={
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["meal", "cafe", "drinks", "dessert", "other"],
+                    },
+                    "keyword": {
+                        "type": "string",
+                        "description": (
+                            "type이 other일 때만 사용. 지역 장소 검색에 쓸 짧은 "
+                            "한국어 명사 (예: '당구장'). 무엇을 찾는지 확실하지 "
+                            "않으면 비워두십시오."
+                        ),
+                    },
+                },
+                "required": ["type"],
+            },
+        )
+    ]
+)
+
+CURATED_TYPES = ("meal", "cafe", "drinks", "dessert")
+
+
+def classify_need_type(text: str) -> Optional[str]:
+    """Classify free-text Korean input into a place category.
+
+    Returns one of the 4 curated type identifiers, an open Korean keyword
+    Gemini extracted, or None. None — not an exception — covers anything
+    short of a missing API key: text Gemini couldn't tell was a place
+    request, a network error, a malformed response, or any other Gemini
+    API failure. All of those mean AskScreen shows a retry prompt rather
+    than /classify failing outright.
+    """
+    api_key = require_gemini_key()
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=text,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                tools=[CLASSIFY_TOOL],
+                tool_config=types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode="ANY",
+                        allowed_function_names=["classify_need"],
+                    )
+                ),
+            ),
+        )
+        for call in response.function_calls or []:
+            args = dict(call.args or {})
+            value = args.get("type")
+            if value in CURATED_TYPES:
+                return value
+            if value == "other":
+                keyword = (args.get("keyword") or "").strip()
+                return keyword or None
+            return None
+        return None
+    except Exception:
+        return None

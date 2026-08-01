@@ -1,3 +1,9 @@
+# Secrets
+.env
+
+# Python virtualenv
+.venv/
+
 # SQLite database
 *.db
 

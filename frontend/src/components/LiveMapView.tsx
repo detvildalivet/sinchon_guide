@@ -1,55 +1,32 @@
 import React, { PropsWithChildren } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { MapViewProps, PROVIDER_GOOGLE } from 'react-native-maps';
-import { MapRegion } from '../services/locationService';
+import { StyleSheet, View } from 'react-native';
+import { NaverMapView } from '@mj-studio/react-native-naver-map';
+import { MapCoordinate, MapRegion } from '../services/locationService';
 
 type Props = PropsWithChildren<{
   region: MapRegion;
-  variant?: 'together' | 'solo';
-  onMapPress?: () => void;
-  mapProps?: Partial<MapViewProps>;
+  userCoordinate?: MapCoordinate;
 }>;
 
-export function LiveMapView({
-  region,
-  variant = 'together',
-  onMapPress,
-  mapProps,
-  children,
-}: Props) {
-  const solo = variant === 'solo';
-
+export function LiveMapView({ region, userCoordinate, children }: Props) {
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <MapView
+      <NaverMapView
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={region}
-        mapType="standard"
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
-        zoomEnabled
-        scrollEnabled
-        pitchEnabled={false}
-        rotateEnabled={false}
-        onPress={
-          onMapPress
-            ? event => {
-                if (event.nativeEvent.action !== 'marker-press') {
-                  onMapPress();
-                }
-              }
+        region={region}
+        isShowCompass={false}
+        isShowLocationButton={false}
+        isScrollGesturesEnabled
+        isZoomGesturesEnabled
+        isTiltGesturesEnabled={false}
+        isRotateGesturesEnabled={false}
+        locationOverlay={
+          userCoordinate
+            ? { isVisible: true, position: userCoordinate }
             : undefined
-        }
-        {...mapProps}>
+        }>
         {children}
-      </MapView>
-      <View
-        pointerEvents="none"
-        style={[styles.veil, solo ? styles.veilSolo : styles.veilTogether]}
-      />
+      </NaverMapView>
     </View>
   );
 }
@@ -60,14 +37,5 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFill,
-  },
-  veil: {
-    ...StyleSheet.absoluteFill,
-  },
-  veilTogether: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  veilSolo: {
-    backgroundColor: 'rgba(8, 23, 65, 0.18)',
   },
 });

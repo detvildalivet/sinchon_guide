@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -8,12 +9,14 @@ import {
 } from 'react-native';
 import { theme } from '../design/theme';
 
-type AppButtonVariant = 'primary' | 'secondary' | 'accent' | 'ghost';
+type AppButtonVariant = 'primary' | 'ghost';
 
 type Props = {
   label: string;
   onPress: () => void;
   variant?: AppButtonVariant;
+  loading?: boolean;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -21,82 +24,63 @@ export function AppButton({
   label,
   onPress,
   variant = 'primary',
+  loading = false,
+  disabled = false,
   style,
 }: Props) {
+  const isDisabled = disabled || loading;
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      accessibilityState={{ disabled: isDisabled }}
+      onPress={isDisabled ? undefined : onPress}
       style={({ pressed }) => [
         styles.base,
         styles[variant],
-        pressed && styles[`${variant}Pressed`],
+        pressed && !isDisabled && styles[`${variant}Pressed`],
+        isDisabled && styles.disabled,
         style,
       ]}>
-      <Text
-        style={[
-          styles.label,
-          variant === 'ghost' && styles.ghostLabel,
-          variant === 'accent' && styles.accentLabel,
-          variant === 'secondary' && styles.secondaryLabel,
-        ]}>
-        {label}
-      </Text>
+      {loading ? (
+        <ActivityIndicator color={variant === 'ghost' ? theme.colors.primary : theme.colors.textOnPrimary} />
+      ) : (
+        <Text style={[styles.label, variant === 'ghost' && styles.ghostLabel]}>{label}</Text>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
+    minHeight: 50,
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadow.soft,
   },
   primary: {
     backgroundColor: theme.colors.primary,
+    ...theme.shadow.soft,
   },
   primaryPressed: {
     backgroundColor: theme.colors.primaryPressed,
-  },
-  secondary: {
-    backgroundColor: theme.colors.secondary,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  secondaryPressed: {
-    backgroundColor: theme.colors.secondaryPressed,
-  },
-  accent: {
-    backgroundColor: theme.colors.accent,
-  },
-  accentPressed: {
-    backgroundColor: theme.colors.accentPressed,
   },
   ghost: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: theme.colors.border,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   ghostPressed: {
     opacity: 0.76,
   },
+  disabled: {
+    opacity: 0.6,
+  },
   label: {
+    ...theme.text.bodyStrong,
     color: theme.colors.textOnPrimary,
-    fontSize: theme.typography.body,
-    fontWeight: '800',
   },
   ghostLabel: {
-    color: theme.colors.primary,
-  },
-  accentLabel: {
-    color: theme.colors.text,
-  },
-  secondaryLabel: {
     color: theme.colors.primary,
   },
 });

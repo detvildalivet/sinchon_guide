@@ -1,27 +1,20 @@
 from datetime import date, datetime
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
-PlaceType = Literal["restaurant", "cafe", "bar"]
-MealSlot = Literal["breakfast", "lunch", "snack", "dinner", "late"]
-QueueStatus = Literal["open", "closed"]
-SenderType = Literal["system", "user"]
-
 
 # ---------- Users ----------
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
+    # No length/character constraint here on purpose — routers/users.py calls
+    # services.password.validate_password() explicitly instead, so the
+    # rejection is a clean 400 with a bare Korean message rather than a
+    # pydantic 422 whose detail[0].msg is prefixed "Value error, ...".
+    password: str
     real_name: str
     birth_date: date
     nickname: str = Field(min_length=2, max_length=20)
-
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
 
 
 class UserSelf(BaseModel):
@@ -35,145 +28,105 @@ class UserSelf(BaseModel):
     created_at: datetime
 
 
-class UserPublic(BaseModel):
-    """Exposed to other users — nickname only."""
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    nickname: str
-
-
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
 
-# ---------- Places ----------
+# ---------- Recommendations ----------
 
-class PlaceCreate(BaseModel):
-    google_place_id: Optional[str] = None
-    slug: Optional[str] = None
+class NeedIn(BaseModel):
+    """The categorized answer to 'what do you need?'.
+
+    The free-text input stage (POST /classify, services/classify.py) emits
+    exactly this shape — {type, lat, lng} — after classifying the user's
+    sentence. `type` is an open string, not a closed enum: it's either one
+    of the 4 curated categories (meal/cafe/drinks/dessert — Kakao's FD6/CE7
+    dedicated category-code search in services/places.py) or an arbitrary
+    Korean place-type keyword Claude extracted (e.g. "당구장"), routed to a
+    plain Kakao keyword search instead. Everything downstream (Places
+    lookup, scoring) treats it as an opaque string either way.
+    """
+    type: str
+    lat: float
+    lng: float
+
+
+class ClassifyIn(BaseModel):
+    """Free-text input to POST /classify — the raw sentence AskScreen's
+    text field collects, before it's been categorized."""
+    text: str = Field(min_length=1, max_length=200)
+
+
+class ClassifyOut(BaseModel):
+    """type is None when Claude couldn't tell what kind of place the user
+    wants (see services/classify.py) — AskScreen shows an inline retry
+    prompt in that case rather than guessing. There is no button-grid
+    fallback; the text step is the only way in."""
+    type: Optional[str] = None
+
+
+class RecommendationOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    place_id: str = Field(alias="placeId")
     name: str
-    latitude: float
-    longitude: float
+    lat: float
+    lng: float
+    rating: Optional[float] = None
+    rating_count: Optional[int] = Field(default=None, alias="ratingCount")
+    distance_minutes: int = Field(alias="distanceMinutes")
+    open_now: Optional[bool] = Field(default=None, alias="openNow")
+    category: Optional[str] = None
     address: Optional[str] = None
-    place_type: PlaceType
-    meta: Optional[str] = None
-    note: Optional[str] = None
-    menu_names: list[str] = Field(default_factory=list)
-    distance_minutes: Optional[int] = None
+    score: float
+    reason: str
 
 
-class PlaceOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+# ---------- Routes ----------
 
-    id: int
-    google_place_id: Optional[str] = Field(default=None, alias="googlePlaceId")
-    slug: Optional[str]
-    name: str
+class Coord(BaseModel):
+    lat: float
+    lng: float
+
+
+class RouteIn(BaseModel):
+    origin: Coord
+    destination: Coord
+
+
+class LatLng(BaseModel):
+    """Matches frontend MapCoordinate — {latitude, longitude}, not {lat, lng}
+    like Coord above, since this feeds NaverMapPathOverlay's `coords` prop
+    directly with no reshaping on the client."""
+
     latitude: float
     longitude: float
-    address: Optional[str]
-    place_type: PlaceType = Field(alias="placeType")
-    meta: Optional[str]
-    note: Optional[str]
-    menu_names: list[str] = Field(alias="menu")
-    distance_minutes: Optional[int] = Field(default=None, alias="distanceMinutes")
-    revisited_rate: float = Field(alias="revisitedRate")
-    created_at: datetime = Field(alias="createdAt")
+
+
+class RouteOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    coordinates: list[LatLng]
+    distance_minutes: int = Field(alias="distanceMinutes")
+    distance_meters: int = Field(alias="distanceMeters")
 
 
 # ---------- Visits ----------
 
-class VisitStart(BaseModel):
-    place_id: int
-    arrived_at: Optional[datetime] = None
-
-
-class VisitEnd(BaseModel):
-    left_at: Optional[datetime] = None
-
-
-class VisitFeedback(BaseModel):
-    """Either submit mood+price OR set disliked=True. Mood/price ignored if disliked."""
-    mood: Optional[float] = Field(default=None, ge=-1.0, le=1.0)
-    price: Optional[float] = Field(default=None, ge=-1.0, le=1.0)
-    disliked: bool = False
+class VisitCreate(BaseModel):
+    place_id: str = Field(alias="placeId")
+    place_name: str = Field(alias="placeName")
+    type: str
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class VisitOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    """A read-back row for the History screen — GET /visits."""
 
-    id: int
-    user_id: int
-    place_id: int
-    arrived_at: datetime
-    left_at: Optional[datetime]
-    mood: Optional[float]
-    price: Optional[float]
-    disliked: bool
-    feedback_submitted: bool
-    created_at: datetime
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
-
-# ---------- Queues ----------
-
-class QueueCreate(BaseModel):
-    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
-    place_id: Optional[int] = Field(default=None, alias="placeId")
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class QueueInfo(BaseModel):
-    """Matches frontend QueueInfo: { placeId, exists, waitingCount }."""
-    place_id: str = Field(alias="placeId")  # the Place.slug
-    exists: bool
-    waiting_count: int = Field(alias="waitingCount")
-    queue_id: Optional[int] = Field(default=None, alias="queueId")
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class QueueOut(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: int
-    place_id: int = Field(alias="placeId")
-    place_slug: Optional[str] = Field(default=None, alias="placeSlug")
-    status: QueueStatus
-    waiting_count: int = Field(alias="waitingCount")
+    place_id: str = Field(alias="placeId")
+    place_name: str = Field(alias="placeName")
+    type: str
     created_at: datetime = Field(alias="createdAt")
-
-
-# ---------- Messages ----------
-
-class MessageCreate(BaseModel):
-    body: str = Field(min_length=1, max_length=2000)
-
-
-class MessageOut(BaseModel):
-    """Matches frontend Message (+ identifiers). Client derives 'me' vs 'system'."""
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
-
-    id: int
-    queue_id: int = Field(alias="queueId")
-    user_id: Optional[int] = Field(default=None, alias="userId")
-    sender_type: SenderType = Field(alias="senderType")
-    body: str
-    created_at: datetime = Field(alias="createdAt")
-
-
-# ---------- Recommendations ----------
-
-class SoloMenuRecommendationOut(BaseModel):
-    """Matches frontend SoloMenuRecommendation exactly."""
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str  # MenuItem.code e.g. "sm1"
-    menu_name: str = Field(alias="menuName")
-    venue_name: str = Field(alias="venueName")
-    category: PlaceType
-    description: str
-    distance: str
-    tags: list[str]
-    score: float
-    reason: str

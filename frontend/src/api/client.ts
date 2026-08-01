@@ -1,14 +1,8 @@
-import { VenueCategory, SoloMenuRecommendation } from '../types/domain';
 import { API_BASE } from './config';
 import { clearToken, getCachedToken } from './authStore';
-import {
-  ApiMessage,
-  ApiPlace,
-  ApiQueueInfo,
-  ApiQueueOut,
-  ApiUser,
-  ApiVisit,
-} from './types';
+import { ApiUser } from './types';
+import { ClassifyResult, Need, Recommendation, RouteResult, Visit } from '../types/recommendation';
+import { MapCoordinate } from '../services/locationService';
 
 export class ApiError extends Error {
   status: number;
@@ -120,44 +114,53 @@ export function getMe(): Promise<ApiUser> {
   return apiFetch('/users/me');
 }
 
-// ---------- Places ----------
+// ---------- Classify ----------
 
-export function fetchPlaces(category: VenueCategory): Promise<ApiPlace[]> {
-  return apiFetch(`/places?place_type=${category}`, { auth: false });
-}
-
-// ---------- Queues ----------
-
-export function fetchQueueInfo(placeSlug: string): Promise<ApiQueueInfo> {
-  return apiFetch(`/queues/info/${encodeURIComponent(placeSlug)}`, { auth: false });
-}
-
-export function createQueue(placeSlug: string): Promise<ApiQueueOut> {
-  return apiFetch('/queues', { method: 'POST', body: { placeSlug } });
-}
-
-export function joinQueue(queueId: number): Promise<ApiQueueOut> {
-  return apiFetch(`/queues/${queueId}/join`, { method: 'POST' });
-}
-
-export function fetchMessages(queueId: number): Promise<ApiMessage[]> {
-  return apiFetch(`/queues/${queueId}/messages`);
-}
-
-export function postMessage(queueId: number, body: string): Promise<ApiMessage> {
-  return apiFetch(`/queues/${queueId}/messages`, { method: 'POST', body: { body } });
+export function postClassifyNeed(text: string): Promise<ClassifyResult> {
+  return apiFetch('/classify', { method: 'POST', body: { text } });
 }
 
 // ---------- Recommendations ----------
 
-export function fetchSoloRecommendations(
-  hour: number,
-): Promise<SoloMenuRecommendation[]> {
-  return apiFetch(`/recommendations/solo?hour=${hour}`, { auth: false });
+export function postRecommendations(need: Need): Promise<Recommendation[]> {
+  return apiFetch('/recommendations', { method: 'POST', body: need });
+}
+
+// ---------- Routes ----------
+
+export function postRoute(
+  origin: MapCoordinate,
+  destination: MapCoordinate,
+): Promise<RouteResult> {
+  return apiFetch('/routes', {
+    method: 'POST',
+    body: {
+      origin: { lat: origin.latitude, lng: origin.longitude },
+      destination: { lat: destination.latitude, lng: destination.longitude },
+    },
+  });
 }
 
 // ---------- Visits ----------
 
-export function getMyVisits(): Promise<ApiVisit[]> {
-  return apiFetch('/visits/me');
+export type VisitPayload = {
+  placeId: string;
+  placeName: string;
+  type: Need['type'];
+};
+
+export function postVisit(payload: VisitPayload): Promise<void> {
+  return apiFetch('/visits', { method: 'POST', body: payload });
+}
+
+export function getVisits(): Promise<Visit[]> {
+  return apiFetch('/visits');
+}
+
+// Hides the user's visible history from this point on — it does NOT delete
+// any Visit row server-side, so recommendation personalization (which reads
+// Visit directly, never this cutoff) is unaffected. See
+// backend/models.py's HistoryClear docstring for the full reasoning.
+export function clearVisits(): Promise<void> {
+  return apiFetch('/visits', { method: 'DELETE' });
 }

@@ -19,7 +19,6 @@ import { ApiUser } from '../api/types';
 type AuthContextValue = {
   token: string | null;
   user: ApiUser | null;
-  userId: number | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (payload: RegisterPayload) => Promise<void>;
@@ -43,23 +42,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     (async () => {
-      const stored = await loadToken();
-      if (!active) {
-        return;
-      }
-      if (stored) {
-        try {
-          const me = await getMe();
-          if (active) {
-            setTokenState(stored);
-            setUser(me);
-          }
-        } catch {
-          await clearToken();
+      // Wrapped end-to-end: previously only the getMe() call inside had a
+      // try/catch, so a rejection from loadToken() itself, or from the
+      // clearToken() called on the getMe() failure path, propagated out of
+      // this IIFE uncaught — setLoading(false) below never ran, and the app
+      // was stuck on App.tsx's splash spinner forever with no recovery
+      // short of a reinstall. Falling back to "logged out" on any failure
+      // here is always a safe, reachable terminal state.
+      try {
+        const stored = await loadToken();
+        if (!active) {
+          return;
         }
-      }
-      if (active) {
-        setLoading(false);
+        if (stored) {
+          try {
+            const me = await getMe();
+            if (active) {
+              setTokenState(stored);
+              setUser(me);
+            }
+          } catch {
+            await clearToken();
+          }
+        }
+      } catch {
+        // Storage itself failed (loadToken or the clearToken above) —
+        // treat as logged out rather than leaving loading stuck.
+        setTokenState(null);
+        setUser(null);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -76,27 +90,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { access_token } = await loginRequest(email, password);
+  // Shared tail of login/signup: persist the token, fetch the profile, and
+  // commit both to state. The two only differ in how they obtain access_token.
+  const finish = useCallback(async (access_token: string) => {
     await setToken(access_token);
     const me = await getMe();
     setTokenState(access_token);
     setUser(me);
   }, []);
 
-  const signup = useCallback(async (payload: RegisterPayload) => {
-    const { access_token } = await register(payload);
-    await setToken(access_token);
-    const me = await getMe();
-    setTokenState(access_token);
-    setUser(me);
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const { access_token } = await loginRequest(email, password);
+      await finish(access_token);
+    },
+    [finish],
+  );
+
+  const signup = useCallback(
+    async (payload: RegisterPayload) => {
+      const { access_token } = await register(payload);
+      await finish(access_token);
+    },
+    [finish],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
       token,
       user,
-      userId: user?.id ?? null,
       loading,
       login,
       signup,

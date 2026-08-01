@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -10,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import User
+from services.api_errors import require_jwt_secret
 
-SECRET_KEY = os.environ.get("SINCHON_JWT_SECRET", "dev-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 
@@ -34,20 +33,19 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None) -> str:
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+def create_access_token(user_id: int) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {"sub": str(user_id), "exp": expire}
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, require_jwt_secret(), algorithm=ALGORITHM)
 
 
 def get_user_from_token(token: str, db: Session) -> Optional[User]:
     """Decode a JWT and return the matching user, or None if invalid.
 
-    Used by the WebSocket endpoint, which authenticates via a `?token=` query
-    param since React Native cannot reliably set WebSocket headers.
+    Used by get_current_user below (header-based auth for all REST routes).
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, require_jwt_secret(), algorithms=[ALGORITHM])
         user_id_str: Optional[str] = payload.get("sub")
         if user_id_str is None:
             return None
