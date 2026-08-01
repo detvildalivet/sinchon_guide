@@ -122,11 +122,6 @@ export function AuthScreen() {
         <Text style={styles.title}>
           {isSignup ? '회원가입' : '로그인'}
         </Text>
-        <Text style={styles.subtitle}>
-          {isSignup
-            ? '주변 장소 추천과 길안내를 이용하려면 가입하십시오.'
-            : '다시 오셨습니다. 계정으로 로그인하십시오.'}
-        </Text>
 
         <View style={styles.form}>
           <Field
@@ -264,10 +259,6 @@ const styles = StyleSheet.create({
   title: {
     ...theme.text.display,
     color: theme.colors.text,
-  },
-  subtitle: {
-    ...theme.text.body,
-    color: theme.colors.muted,
   },
   form: {
     gap: theme.spacing.md,

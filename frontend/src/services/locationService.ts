@@ -34,8 +34,8 @@ export const DEFAULT_COORDINATE: MapCoordinate = {
  */
 const USE_MOCK_LOCATION = __DEV__;
 export const MOCK_COORDINATE: MapCoordinate = {
-  latitude: 37.5585,
-  longitude: 126.937,
+  latitude: 37.5640,
+  longitude: 126.9386,
 };
 
 export type LocationResult =
